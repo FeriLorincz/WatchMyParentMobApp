@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors for Dark Theme -->
+    <color name="primary_color">#90CAF9</color>
+    <color name="primary_container">#1565C0</color>
+    <color name="on_primary_container">#E3F2FD</color>
+
+    <!-- Surface Colors for Dark Theme -->
+    <color name="surface_color">#121212</color>
+    <color name="on_surface">#FFFFFF</color>
+    <color name="surface_variant">#2C2C2C</color>
+    <color name="on_surface_variant">#FFFFFF</color>
+
+    <!-- Background -->
+    <color name="background_light">#121212</color>
+    <color name="card_background">#1E1E1E</color>
+    <color name="divider_color">#333333</color>
+</resources>

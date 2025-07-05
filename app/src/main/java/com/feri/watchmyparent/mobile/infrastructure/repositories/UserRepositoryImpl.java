@@ -1,0 +1,136 @@
+package com.feri.watchmyparent.mobile.infrastructure.repositories;
+
+import com.feri.watchmyparent.mobile.domain.entities.User;
+import com.feri.watchmyparent.mobile.domain.repositories.UserRepository;
+import com.feri.watchmyparent.mobile.infrastructure.database.dao.UserDao;
+import com.feri.watchmyparent.mobile.infrastructure.database.entities.UserEntity;
+import timber.log.Timber;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
+@Singleton
+public class UserRepositoryImpl implements UserRepository{
+
+    private final UserDao userDao;
+    private final Executor executor = Executors.newFixedThreadPool(4);
+
+    @Inject
+    public UserRepositoryImpl(UserDao userDao) {
+        this.userDao = userDao;
+    }
+
+    @Override
+    public CompletableFuture<User> save(User user) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                UserEntity entity = convertToEntity(user);
+                userDao.insertUser(entity);
+                Timber.d("User saved successfully: %s", user.getIdUser());
+                return user;
+            } catch (Exception e) {
+                Timber.e(e, "Error saving user: %s", user.getIdUser());
+                throw new RuntimeException("Failed to save user", e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Optional<User>> findById(String id) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                UserEntity entity = userDao.getUserById(id);
+                return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
+            } catch (Exception e) {
+                Timber.e(e, "Error finding user by id: %s", id);
+                return Optional.empty();
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Optional<User>> findByEmail(String email) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                UserEntity entity = userDao.getUserByEmail(email);
+                return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
+            } catch (Exception e) {
+                Timber.e(e, "Error finding user by email: %s", email);
+                return Optional.empty();
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Void> delete(String id) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                userDao.deleteUserById(id);
+                Timber.d("User deleted successfully: %s", id);
+            } catch (Exception e) {
+                Timber.e(e, "Error deleting user: %s", id);
+                throw new RuntimeException("Failed to delete user", e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> existsByEmail(String email) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return userDao.existsByEmail(email);
+            } catch (Exception e) {
+                Timber.e(e, "Error checking if user exists by email: %s", email);
+                return false;
+            }
+        }, executor);
+    }
+
+    private UserEntity convertToEntity(User user) {
+        UserEntity entity = new UserEntity();
+        entity.idUser = user.getIdUser();
+        entity.firstNameUser = user.getFirstNameUser();
+        entity.lastNameUser = user.getLastNameUser();
+        entity.dateOfBirthUser = user.getDateOfBirthUser();
+        entity.userType = user.getUserType();
+        entity.addressUser = user.getAddressUser();
+        entity.phoneNumberUser = user.getPhoneNumberUser();
+        entity.emailUser = user.getEmailUser();
+        entity.password = user.getPassword();
+        entity.resetPasswordToken = user.getResetPasswordToken();
+        entity.resetPasswordTokenExpiry = user.getResetPasswordTokenExpiry();
+        entity.accountNonExpired = user.isAccountNonExpired();
+        entity.accountNonLocked = user.isAccountNonLocked();
+        entity.credentialsNonExpired = user.isCredentialsNonExpired();
+        entity.enabled = user.isEnabled();
+        entity.createdAt = user.getCreatedAt();
+        entity.updatedAt = user.getUpdatedAt();
+        return entity;
+    }
+
+    private User convertToDomain(UserEntity entity) {
+        User user = new User();
+        user.setIdUser(entity.idUser);
+        user.setFirstNameUser(entity.firstNameUser);
+        user.setLastNameUser(entity.lastNameUser);
+        user.setDateOfBirthUser(entity.dateOfBirthUser);
+        user.setUserType(entity.userType);
+        user.setAddressUser(entity.addressUser);
+        user.setPhoneNumberUser(entity.phoneNumberUser);
+        user.setEmailUser(entity.emailUser);
+        user.setPassword(entity.password);
+        user.setResetPasswordToken(entity.resetPasswordToken);
+        user.setResetPasswordTokenExpiry(entity.resetPasswordTokenExpiry);
+        user.setAccountNonExpired(entity.accountNonExpired);
+        user.setAccountNonLocked(entity.accountNonLocked);
+        user.setCredentialsNonExpired(entity.credentialsNonExpired);
+        user.setEnabled(entity.enabled);
+        user.setCreatedAt(entity.createdAt);
+        user.setUpdatedAt(entity.updatedAt);
+        return user;
+    }
+}
