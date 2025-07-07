@@ -1,5 +1,7 @@
 package com.feri.watchmyparent.mobile.infrastructure.repositories;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.domain.entities.SensorData;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.SensorDataRepository;
@@ -8,8 +10,6 @@ import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.domain.enums.TransmissionStatus;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.SensorDataDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.SensorDataEntity;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
@@ -35,11 +35,10 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
             try {
                 SensorDataEntity entity = convertToEntity(sensorData);
                 sensorDataDao.insertSensorData(entity);
-                Timber.d("Sensor data saved: %s for user %s",
-                        sensorData.getSensorType(), sensorData.getUser().getIdUser());
+                Log.d("SensorDataRepositoryImpl", "Sensor data saved: " + sensorData.getSensorType() + " for user " + sensorData.getUser().getIdUser());
                 return sensorData;
             } catch (Exception e) {
-                Timber.e(e, "Error saving sensor data");
+                Log.e("SensorDataRepositoryImpl", "Error saving sensor data", e);
                 throw new RuntimeException("Failed to save sensor data", e);
             }
         }, executor);
@@ -54,7 +53,7 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding sensor data by user and type");
+                Log.e("SensorDataRepositoryImpl", "Error finding sensor data by user and type", e);
                 throw new RuntimeException("Failed to find sensor data", e);
             }
         }, executor);
@@ -69,7 +68,7 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding sensor data by transmission status");
+                Log.e("SensorDataRepositoryImpl", "Error finding sensor data by transmission status", e);
                 throw new RuntimeException("Failed to find sensor data", e);
             }
         }, executor);
@@ -84,7 +83,7 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding latest sensor data");
+                Log.e("SensorDataRepositoryImpl", "Error finding latest sensor data", e);
                 throw new RuntimeException("Failed to find latest sensor data", e);
             }
         }, executor);
@@ -95,9 +94,9 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
         return CompletableFuture.runAsync(() -> {
             try {
                 sensorDataDao.deleteSensorDataById(id);
-                Timber.d("Sensor data deleted: %s", id);
+                Log.d("SensorDataRepositoryImpl", "Sensor data deleted: " + id);
             } catch (Exception e) {
-                Timber.e(e, "Error deleting sensor data: %s", id);
+                Log.e("SensorDataRepositoryImpl", "Error deleting sensor data", e);
                 throw new RuntimeException("Failed to delete sensor data", e);
             }
         }, executor);
@@ -113,7 +112,7 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding pending transmissions");
+                Log.e("SensorDataRepositoryImpl", "Error finding pending transmissions", e);
                 throw new RuntimeException("Failed to find pending transmissions", e);
             }
         }, executor);

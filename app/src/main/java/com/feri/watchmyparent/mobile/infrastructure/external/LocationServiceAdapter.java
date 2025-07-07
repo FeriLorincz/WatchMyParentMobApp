@@ -7,11 +7,10 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.Looper;
+import android.util.Log;
 import androidx.core.app.ActivityCompat;
 import com.google.android.gms.location.*;
 import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
-import timber.log.Timber;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class LocationServiceAdapter {
 
+    private static final String TAG = "LocationServiceAdapter";
     private final Context context;
     private final FusedLocationProviderClient fusedLocationClient;
     private final Geocoder geocoder;
@@ -48,7 +48,7 @@ public class LocationServiceAdapter {
                         }
                     })
                     .addOnFailureListener(e -> {
-                        Timber.e(e, "Failed to get last known location");
+                        Log.e(TAG, "Failed to get last known location", e);
                         future.completeExceptionally(e);
                     });
         } catch (SecurityException e) {
@@ -60,11 +60,13 @@ public class LocationServiceAdapter {
 
     private void requestNewLocationData(CompletableFuture<LocationStatus> future) {
         try {
-            LocationRequest locationRequest = LocationRequest.create()
-                    .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                    .setInterval(10000)
-                    .setFastestInterval(5000)
-                    .setNumUpdates(1);
+            LocationRequest locationRequest = new LocationRequest.Builder(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    10000L // interval in milliseconds
+            )
+                    .setMinUpdateIntervalMillis(5000L) // fastest interval
+                    .setMaxUpdates(1) // single update
+                    .build();
 
             locationCallback = new LocationCallback() {
                 @Override
@@ -92,7 +94,6 @@ public class LocationServiceAdapter {
 
     private void processLocation(Location location, CompletableFuture<LocationStatus> future) {
         try {
-            // FIXARE: Așteaptă rezultatul CompletableFuture-ului pentru adresă
             getAddressFromLocation(location.getLatitude(), location.getLongitude())
                     .thenAccept(address -> {
                         LocationStatus locationStatus = new LocationStatus(
@@ -104,7 +105,7 @@ public class LocationServiceAdapter {
                         future.complete(locationStatus);
                     })
                     .exceptionally(throwable -> {
-                        Timber.e(throwable, "Error getting address from location");
+                        Log.e(TAG, "Error getting address from location", throwable);
                         // Fallback cu coordonate dacă adresa nu poate fi obținută
                         LocationStatus locationStatus = new LocationStatus(
                                 "AWAY",
@@ -117,7 +118,7 @@ public class LocationServiceAdapter {
                     });
 
         } catch (Exception e) {
-            Timber.e(e, "Error processing location");
+            Log.e(TAG, "Error processing location", e);
             future.completeExceptionally(e);
         }
     }
@@ -147,7 +148,7 @@ public class LocationServiceAdapter {
                 }
                 return "Address not found";
             } catch (IOException e) {
-                Timber.e(e, "Error getting address from coordinates");
+                Log.e(TAG, "Error getting address from coordinates", e);
                 return "Unknown location";
             }
         });
@@ -160,10 +161,13 @@ public class LocationServiceAdapter {
         }
 
         try {
-            LocationRequest locationRequest = LocationRequest.create()
-                    .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
-                    .setInterval(600000) // 10 minutes
-                    .setFastestInterval(300000); // 5 minutes
+            // Use LocationRequest.Builder for newer API
+            LocationRequest locationRequest = new LocationRequest.Builder(
+                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                    600000L // 10 minutes
+            )
+                    .setMinUpdateIntervalMillis(300000L) // 5 minutes
+                    .build();
 
             locationCallback = new LocationCallback() {
                 @Override

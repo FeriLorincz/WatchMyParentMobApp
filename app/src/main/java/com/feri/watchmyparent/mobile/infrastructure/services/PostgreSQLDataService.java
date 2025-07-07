@@ -1,10 +1,10 @@
 package com.feri.watchmyparent.mobile.infrastructure.services;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
 import com.feri.watchmyparent.mobile.domain.entities.SensorData;
 import com.feri.watchmyparent.mobile.domain.entities.LocationData;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.sql.Connection;
@@ -52,17 +52,18 @@ public class PostgreSQLDataService {
                         stmt.close();
                         PostgreSQLConfig.closeConnection(connection);
 
-                        Timber.d("Sensor data inserted successfully: %d rows affected", rowsAffected);
+                        Log.d("PostgreSQLDataService", "Sensor data inserted successfully: " + rowsAffected + " rows affected");
                         return rowsAffected > 0;
 
                     } catch (SQLException e) {
-                        Timber.e(e, "Error inserting sensor data");
+                        Log.e("PostgreSQLDataService", "Error inserting sensor data: " + e.getMessage());
+
                         PostgreSQLConfig.closeConnection(connection);
                         return false;
                     }
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Failed to insert sensor data");
+                    Log.e("PostgreSQLDataService", "Failed to insert sensor data: " + throwable.getMessage());
                     return false;
                 });
     }
@@ -101,17 +102,17 @@ public class PostgreSQLDataService {
                         stmt.close();
                         PostgreSQLConfig.closeConnection(connection);
 
-                        Timber.d("Location data inserted/updated successfully: %d rows affected", rowsAffected);
+                        Log.d("PostgreSQLDataService", "Location data inserted successfully: " + rowsAffected + " rows affected");
                         return rowsAffected > 0;
 
                     } catch (SQLException e) {
-                        Timber.e(e, "Error inserting location data");
+                        Log.e("PostgreSQLDataService", "Error inserting location data: " + e.getMessage());
                         PostgreSQLConfig.closeConnection(connection);
                         return false;
                     }
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Failed to insert location data");
+                    Log.e("PostgreSQLDataService", "Failed to insert location data: " + throwable.getMessage());
                     return false;
                 });
     }
@@ -188,11 +189,11 @@ public class PostgreSQLDataService {
                         stmt.close();
                         PostgreSQLConfig.closeConnection(connection);
 
-                        Timber.d("Test data inserted: %d rows affected", rowsAffected);
+                        Log.d("PostgreSQLDataService", "Test data inserted successfully: " + rowsAffected + " rows affected");
                         return rowsAffected > 0;
 
                     } catch (SQLException e) {
-                        Timber.e(e, "Error inserting test data");
+                        Log.e("PostgreSQLDataService", "Error inserting test data: " + e.getMessage());
                         PostgreSQLConfig.closeConnection(connection);
                         return false;
                     }

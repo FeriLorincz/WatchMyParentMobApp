@@ -1,22 +1,14 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
 local.properties
 /app/build.gradle
 
 # Built application files
 *.apk
+*.aar
 *.ap_
 *.aab
 
@@ -69,6 +61,7 @@ captures/
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
+.cxx/
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
@@ -87,6 +80,25 @@ fastlane/readme.md
 
 # Version control
 .svn/
+vcs.xml
+
+# lint
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+
+# Android Profiling
+*.hprof
+
+# Windows
+Thumbs.db
+
+# Project specific
+app/schemas/
+*.db
+*.db-shm
+*.db-wall
 
 # Miscellaneous
 *.swp
@@ -96,3 +108,4 @@ fastlane/readme.md
 # Sensitive information
 config.properties
 secrets.properties
+/app/

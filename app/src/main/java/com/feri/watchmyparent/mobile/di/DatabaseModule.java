@@ -71,31 +71,6 @@ public class DatabaseModule {
         return database.medicalProfileDao();
     }
 
-    // Provide Repositories
-    @Provides
-    @Singleton
-    public UserRepository provideUserRepository(UserDao userDao) {
-        return new UserRepositoryImpl(userDao);
-    }
-
-    @Provides
-    @Singleton
-    public SensorDataRepository provideSensorDataRepository(SensorDataDao sensorDataDao) {
-        return new SensorDataRepositoryImpl(sensorDataDao);
-    }
-
-    @Provides
-    @Singleton
-    public SensorConfigurationRepository provideSensorConfigurationRepository(SensorConfigurationDao sensorConfigurationDao) {
-        return new SensorConfigurationRepositoryImpl(sensorConfigurationDao);
-    }
-
-    @Provides
-    @Singleton
-    public LocationDataRepository provideLocationDataRepository(LocationDataDao locationDataDao) {
-        return new LocationDataRepositoryImpl(locationDataDao);
-    }
-
     @Provides
     @Singleton
     public EmergencyContactRepository provideEmergencyContactRepository(EmergencyContactDao emergencyContactDao) {

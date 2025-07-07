@@ -1,5 +1,7 @@
 package com.feri.watchmyparent.mobile.application.services;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
 import com.feri.watchmyparent.mobile.application.dto.SensorConfigurationDTO;
 import com.feri.watchmyparent.mobile.domain.entities.SensorData;
@@ -13,17 +15,106 @@ import com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Singleton
 public class HealthDataApplicationService {
+
+    private static final String TAG = "HealthDataApplicationService";
+
+    private final UserRepository userRepository;
+    private final SensorDataRepository sensorDataRepository;
+    private final SensorConfigurationRepository configurationRepository;
+    private final HealthDataKafkaProducer kafkaProducer;
+
+    @Inject
+    public HealthDataApplicationService(
+            UserRepository userRepository,
+            SensorDataRepository sensorDataRepository,
+            SensorConfigurationRepository configurationRepository,
+            HealthDataKafkaProducer kafkaProducer) {
+        this.userRepository = userRepository;
+        this.sensorDataRepository = sensorDataRepository;
+        this.configurationRepository = configurationRepository;
+        this.kafkaProducer = kafkaProducer;
+    }
+
+    public CompletableFuture<List<SensorData>> collectSensorData(String userId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Găsim utilizatorul folosind Optional pentru a evita NoSuchElementException
+                Optional<User> userOptional = userRepository.findById(userId).join();
+
+                if (!userOptional.isPresent()) {
+                    Log.w(TAG, "User not found: " + userId);
+                    return new ArrayList<>(); // Returnăm o listă goală în loc să aruncăm excepție
+                }
+
+                User user = userOptional.get();
+
+                // Obținem configurațiile senzorilor
+                List<SensorConfiguration> configurations =
+                        configurationRepository.findByUserId(userId).join();
+
+                if (configurations.isEmpty()) {
+                    Log.w(TAG, "No sensor configurations found for user: " + userId);
+                    return new ArrayList<>();
+                }
+
+                // Aici ar trebui să colectăm date reale de la senzori
+                // Pentru moment, simulăm câteva date
+                List<SensorData> collectedData = simulateSensorData(user, configurations);
+
+                // Salvăm datele în repository
+                for (SensorData data : collectedData) {
+                    sensorDataRepository.save(data).join();
+
+                    // Trimitem date la Kafka
+                    kafkaProducer.sendHealthData(data, userId);
+                }
+
+                return collectedData;
+            } catch (Exception e) {
+                Log.e(TAG, "Error collecting sensor data for user " + userId, e);
+                return new ArrayList<>(); // Returnăm o listă goală în caz de eroare
+            }
+        });
+    }
+
+    private List<SensorData> simulateSensorData(User user, List<SensorConfiguration> configurations) {
+        List<SensorData> data = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (SensorConfiguration config : configurations) {
+            SensorData sensorData = new SensorData();
+            sensorData.setIdSensorData(java.util.UUID.randomUUID().toString());
+            sensorData.setUser(user);
+            sensorData.setSensorType(config.getSensorType());
+            sensorData.setTimestamp(now);
+            sensorData.setValue(Math.random() * 100); // Valoare aleatoare între 0-100
+            sensorData.setUnit(config.getUnitOfMeasure());
+
+            data.add(sensorData);
+        }
+
+        return data;
+    }
+}
+
+
+
+
+
+
+    /*
 
     private final WatchManager watchManager;
     private final SensorDataRepository sensorDataRepository;
@@ -60,7 +151,7 @@ public class HealthDataApplicationService {
                             .thenCompose(readings -> processSensorReadings(user, readings));
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error collecting sensor data for user %s", userId);
+                    Log.e("HealthDataApplicationService", "Error collecting sensor data for user " + userId + throwable.getMessage());
                     return new ArrayList<>();
                 });
     }
@@ -191,3 +282,5 @@ public class HealthDataApplicationService {
         return dto;
     }
 }
+
+     */

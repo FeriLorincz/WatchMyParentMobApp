@@ -1,11 +1,12 @@
 package com.feri.watchmyparent.mobile.application.services;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO;
 import com.feri.watchmyparent.mobile.application.dto.SensorConfigurationDTO;
 import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchCapabilityRegistry;
-import timber.log.Timber;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
@@ -24,7 +25,7 @@ public class WatchConnectionApplicationService {
     }
 
     public CompletableFuture<WatchConnectionStatusDTO> connectWatch() {
-        Timber.d("Attempting to connect to Samsung Watch");
+        Log.d("WatchConnectionApplicationService", "Attempting to connect to Samsung Watch");
 
         return watchManager.connect()
                 .thenCompose(connected -> {
@@ -39,7 +40,7 @@ public class WatchConnectionApplicationService {
                     }
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error connecting to Samsung Watch");
+                    Log.e("WatchConnectionApplicationService", "Error connecting to Samsung Watch", throwable);
                     currentStatus.setConnected(false);
                     currentStatus.setConnectionError(throwable.getMessage());
                     return currentStatus;
@@ -47,7 +48,7 @@ public class WatchConnectionApplicationService {
     }
 
     public CompletableFuture<WatchConnectionStatusDTO> disconnectWatch() {
-        Timber.d("Disconnecting from Samsung Watch");
+        Log.d("WatchConnectionApplicationService", "Disconnecting from Samsung Watch");
 
         return watchManager.disconnect()
                 .thenApply(success -> {
@@ -63,24 +64,23 @@ public class WatchConnectionApplicationService {
         return watchManager.getSupportedSensors()
                 .thenApply(sensors -> {
                     currentStatus.setSupportedSensors(sensors);
-                    Timber.d("Loaded %d supported sensors", sensors.size());
+                    Log.d("WatchConnectionApplicationService", "Loaded " + sensors.size() + " supported sensors");
                     return currentStatus;
                 });
     }
 
     public CompletableFuture<Boolean> configureSensorFrequency(SensorConfigurationDTO config) {
         if (!currentStatus.isConnected()) {
-            Timber.w("Cannot configure sensor: Watch not connected");
+            Log.w("WatchConnectionApplicationService", "Cannot configure sensor: Watch not connected");
             return CompletableFuture.completedFuture(false);
         }
 
         return watchManager.configureSensorFrequency(config.getSensorType(), config.getFrequencySeconds())
                 .thenApply(success -> {
                     if (success) {
-                        Timber.d("Successfully configured %s frequency to %d seconds",
-                                config.getSensorType(), config.getFrequencySeconds());
+                        Log.d("WatchConnectionApplicationService", "Successfully configured " + config.getSensorType() + " frequency to " + config.getFrequencySeconds() + " seconds");
                     } else {
-                        Timber.w("Failed to configure %s frequency", config.getSensorType());
+                        Log.w("WatchConnectionApplicationService", "Failed to configure " + config.getSensorType() + " frequency");
                     }
                     return success;
                 });

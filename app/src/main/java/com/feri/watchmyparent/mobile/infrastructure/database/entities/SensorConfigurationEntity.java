@@ -1,5 +1,6 @@
 package com.feri.watchmyparent.mobile.infrastructure.database.entities;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import androidx.room.ForeignKey;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 public class SensorConfigurationEntity {
 
     @PrimaryKey
+    @NonNull
     public String idSensorConfiguration;
 
     public String userId;

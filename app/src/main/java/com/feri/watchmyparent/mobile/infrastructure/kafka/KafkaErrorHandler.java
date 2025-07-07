@@ -1,6 +1,6 @@
 package com.feri.watchmyparent.mobile.infrastructure.kafka;
 
-import timber.log.Timber;
+import android.util.Log;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,7 +19,7 @@ public class KafkaErrorHandler {
 
     public CompletableFuture<Boolean> handleFailedMessage(Object healthData, String userId, int attemptCount) {
         if (attemptCount >= MAX_RETRY_ATTEMPTS) {
-            Timber.e("Max retry attempts reached for message. Moving to dead letter queue.");
+            Log.e("KafkaErrorHandler", "Max retry attempts reached for message. Moving to dead letter queue.");
             return handleDeadLetter(healthData, userId);
         }
 
@@ -28,7 +28,7 @@ public class KafkaErrorHandler {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         scheduler.schedule(() -> {
-            Timber.d("Retrying message transmission, attempt %d", attemptCount + 1);
+            Log.d("KafkaErrorHandler", "Retrying message transmission, attempt " + (attemptCount + 1));
             producer.sendHealthData(healthData, userId)
                     .thenAccept(success -> {
                         if (success) {
@@ -39,7 +39,7 @@ public class KafkaErrorHandler {
                         }
                     })
                     .exceptionally(throwable -> {
-                        Timber.e(throwable, "Error during retry attempt");
+                        Log.e("KafkaErrorHandler", "Error during retry attempt. Moving to dead letter queue.");
                         handleFailedMessage(healthData, userId, attemptCount + 1)
                                 .thenAccept(future::complete);
                         return null;
@@ -51,7 +51,8 @@ public class KafkaErrorHandler {
 
     private CompletableFuture<Boolean> handleDeadLetter(Object healthData, String userId) {
         // Store in local database for later retry or manual intervention
-        Timber.w("Storing failed message in dead letter queue for user %s", userId);
+
+        Log.w("TAG", String.format("Storing failed message in dead letter queue for user %s", userId));
 
         // In a real implementation, you would store this in a local database
         // For MVP, we'll just log the failure

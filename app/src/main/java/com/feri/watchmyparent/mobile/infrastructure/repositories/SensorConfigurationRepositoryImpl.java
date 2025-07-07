@@ -1,13 +1,13 @@
 package com.feri.watchmyparent.mobile.infrastructure.repositories;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.domain.entities.SensorConfiguration;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.SensorConfigurationRepository;
 import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.SensorConfigurationDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.SensorConfigurationEntity;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
@@ -34,11 +34,10 @@ public class SensorConfigurationRepositoryImpl implements SensorConfigurationRep
             try {
                 SensorConfigurationEntity entity = convertToEntity(configuration);
                 configurationDao.insertSensorConfiguration(entity);
-                Timber.d("Sensor configuration saved: %s for user %s",
-                        configuration.getSensorType(), configuration.getUser().getIdUser());
+                Log.d("SensorConfigurationRepository", "Sensor configuration saved: " + configuration.getSensorType() + " for user " + configuration.getUser().getIdUser());
                 return configuration;
             } catch (Exception e) {
-                Timber.e(e, "Error saving sensor configuration");
+                Log.e("SensorConfigurationRepository", "Error saving sensor configuration", e);
                 throw new RuntimeException("Failed to save sensor configuration", e);
             }
         }, executor);
@@ -51,7 +50,7 @@ public class SensorConfigurationRepositoryImpl implements SensorConfigurationRep
                 SensorConfigurationEntity entity = configurationDao.getSensorConfigurationByUserAndType(userId, sensorType);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding sensor configuration");
+                Log.e("SensorConfigurationRepository", "Error finding sensor configuration", e);
                 return Optional.empty();
             }
         }, executor);
@@ -66,7 +65,7 @@ public class SensorConfigurationRepositoryImpl implements SensorConfigurationRep
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding sensor configurations by user");
+                Log.e("SensorConfigurationRepository", "Error finding sensor configurations", e);
                 throw new RuntimeException("Failed to find sensor configurations", e);
             }
         }, executor);
@@ -77,9 +76,9 @@ public class SensorConfigurationRepositoryImpl implements SensorConfigurationRep
         return CompletableFuture.runAsync(() -> {
             try {
                 configurationDao.deleteSensorConfigurationById(id);
-                Timber.d("Sensor configuration deleted: %s", id);
+                Log.d("SensorConfigurationRepository", "Sensor configuration deleted: " + id);
             } catch (Exception e) {
-                Timber.e(e, "Error deleting sensor configuration: %s", id);
+                Log.e("SensorConfigurationRepository", "Error deleting sensor configuration", e);
                 throw new RuntimeException("Failed to delete sensor configuration", e);
             }
         }, executor);
@@ -94,7 +93,7 @@ public class SensorConfigurationRepositoryImpl implements SensorConfigurationRep
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding enabled sensor configurations");
+                Log.e("SensorConfigurationRepository", "Error finding enabled sensor configurations", e);
                 throw new RuntimeException("Failed to find enabled sensor configurations", e);
             }
         }, executor);

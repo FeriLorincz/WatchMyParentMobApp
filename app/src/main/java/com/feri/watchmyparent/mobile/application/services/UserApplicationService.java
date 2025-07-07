@@ -1,5 +1,7 @@
 package com.feri.watchmyparent.mobile.application.services;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.application.dto.UserRegistrationDTO;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.entities.MedicalProfile;
@@ -7,7 +9,7 @@ import com.feri.watchmyparent.mobile.domain.entities.SensorConfiguration;
 import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.domain.repositories.UserRepository;
 import com.feri.watchmyparent.mobile.domain.repositories.SensorConfigurationRepository;
-import timber.log.Timber;
+//import timber.log.Timber;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -78,7 +80,7 @@ public class UserApplicationService {
 
         return CompletableFuture.allOf(configFutures)
                 .thenApply(ignored -> {
-                    Timber.d("Created default sensor configurations for user %s", user.getIdUser());
+                    Log.d("Created default sensor configurations for user %s", user.getIdUser());
                     return user;
                 });
     }

@@ -1,12 +1,12 @@
 package com.feri.watchmyparent.mobile.infrastructure.repositories;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.domain.entities.LocationData;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.LocationDataRepository;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.LocationDataDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.LocationDataEntity;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -31,10 +31,10 @@ public class LocationDataRepositoryImpl implements LocationDataRepository {
             try {
                 LocationDataEntity entity = convertToEntity(locationData);
                 locationDataDao.insertLocationData(entity);
-                Timber.d("Location data saved for user: %s", locationData.getUser().getIdUser());
+                Log.d("LocationDataRepository", "Location data saved for user: " + locationData.getUser().getIdUser());
                 return locationData;
             } catch (Exception e) {
-                Timber.e(e, "Error saving location data");
+                Log.e("LocationDataRepository", "Error saving location data", e);
                 throw new RuntimeException("Failed to save location data", e);
             }
         }, executor);
@@ -47,7 +47,7 @@ public class LocationDataRepositoryImpl implements LocationDataRepository {
                 LocationDataEntity entity = locationDataDao.getLocationDataByUser(userId);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding location data by user: %s", userId);
+                Log.e("LocationDataRepository", "Error finding location data by user: " + userId, e);
                 return Optional.empty();
             }
         }, executor);
@@ -58,9 +58,9 @@ public class LocationDataRepositoryImpl implements LocationDataRepository {
         return CompletableFuture.runAsync(() -> {
             try {
                 locationDataDao.deleteLocationDataById(id);
-                Timber.d("Location data deleted: %s", id);
+                Log.d("LocationDataRepository", "Location data deleted: " + id);
             } catch (Exception e) {
-                Timber.e(e, "Error deleting location data: %s", id);
+                Log.e("LocationDataRepository", "Error deleting location data", e);
                 throw new RuntimeException("Failed to delete location data", e);
             }
         }, executor);

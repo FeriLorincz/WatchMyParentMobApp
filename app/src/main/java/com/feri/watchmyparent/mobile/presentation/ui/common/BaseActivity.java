@@ -1,17 +1,18 @@
 package com.feri.watchmyparent.mobile.presentation.ui.common;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import timber.log.Timber;
 
 public abstract class BaseActivity extends AppCompatActivity{
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Timber.d("Creating activity: %s", getClass().getSimpleName());
+        Log.d(getClass().getSimpleName(), "Creating activity: " + getClass().getSimpleName());
+
     }
 
     protected void setupToolbar(Toolbar toolbar, String title, boolean showBack) {
@@ -26,7 +27,7 @@ public abstract class BaseActivity extends AppCompatActivity{
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            onBackPressed();
+            getOnBackPressedDispatcher().onBackPressed();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -38,11 +39,13 @@ public abstract class BaseActivity extends AppCompatActivity{
 
     protected void showError(String message) {
         // Override in subclasses to show error messages
-        Timber.e("Error: %s", message);
+
+        Log.e(getClass().getSimpleName(), "Error: " + message);
     }
 
     protected void showSuccess(String message) {
         // Override in subclasses to show success messages
-        Timber.d("Success: %s", message);
+
+        Log.d(getClass().getSimpleName(), "Success: " + message);
     }
 }

@@ -1,6 +1,8 @@
 package com.feri.watchmyparent.mobile.infrastructure.watch;
 
 import android.content.Context;
+import android.util.Log;
+
 import androidx.health.connect.client.HealthConnectClient;
 import androidx.health.connect.client.permission.HealthPermission;
 import androidx.health.connect.client.records.*;
@@ -8,7 +10,6 @@ import androidx.health.connect.client.request.ReadRecordsRequest;
 import androidx.health.connect.client.time.TimeRangeFilter;
 import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading;
-import timber.log.Timber;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -17,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class SamsungWatchManager extends WatchManager {
 
+    private static final String TAG = "SamsungWatchManager";
     private final Context context;
     private HealthConnectClient healthConnectClient;
     private final Map<SensorType, Integer> sensorFrequencies = new HashMap<>();
@@ -29,14 +31,17 @@ public class SamsungWatchManager extends WatchManager {
 
     private void initializeHealthConnect() {
         try {
-            if (HealthConnectClient.isProviderAvailable(context)) {
+            // Check if Health Connect is available
+            // Folosim metoda getSdkStatus în loc de isProviderAvailable pentru compatibilitate
+            int availabilityStatus = HealthConnectClient.getSdkStatus(context);
+            if (availabilityStatus == HealthConnectClient.SDK_AVAILABLE) {
                 healthConnectClient = HealthConnectClient.getOrCreate(context);
-                Timber.d("Health Connect client initialized successfully");
+                Log.d(TAG, "Health Connect client initialized successfully");
             } else {
-                Timber.e("Health Connect is not available on this device");
+                Log.e(TAG, "Health Connect is not available on this device. Status: " + availabilityStatus);
             }
         } catch (Exception e) {
-            Timber.e(e, "Failed to initialize Health Connect client");
+            Log.e(TAG, "Failed to initialize Health Connect client", e);
         }
     }
 
@@ -54,11 +59,11 @@ public class SamsungWatchManager extends WatchManager {
                 // In a real implementation, you would check permissions here
                 // For MVP, we'll assume permissions are granted
                 isConnected = healthConnectClient != null;
-                Timber.d("Samsung Watch connection status: %s", isConnected);
+                Log.d(TAG, "Samsung Watch connection status: " + isConnected);
                 return isConnected;
 
             } catch (Exception e) {
-                Timber.e(e, "Failed to connect to Samsung Watch");
+                Log.e(TAG, "Failed to connect to Samsung Watch", e);
                 isConnected = false;
                 return false;
             }
@@ -70,10 +75,10 @@ public class SamsungWatchManager extends WatchManager {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 isConnected = false;
-                Timber.d("Samsung Watch disconnected");
+                Log.d(TAG, "Samsung Watch disconnected");
                 return true;
             } catch (Exception e) {
-                Timber.e(e, "Error during Samsung Watch disconnection");
+                Log.e(TAG, "Error during Samsung Watch disconnection", e);
                 return false;
             }
         });
@@ -85,90 +90,37 @@ public class SamsungWatchManager extends WatchManager {
             List<SensorReading> readings = new ArrayList<>();
 
             if (!isConnected || healthConnectClient == null) {
-                Timber.w("Cannot read sensor data: Watch not connected");
+                Log.w(TAG, "Cannot read sensor data: Watch not connected");
                 return readings;
             }
 
             try {
-                Instant endTime = Instant.now();
-                Instant startTime = endTime.minus(1, ChronoUnit.HOURS);
-                TimeRangeFilter timeRange = TimeRangeFilter.between(startTime, endTime);
-
+                // Îmbunătățim gestionarea erorilor aici
                 for (SensorType sensorType : sensorTypes) {
-                    SensorReading reading = readSpecificSensor(sensorType, timeRange);
-                    if (reading != null) {
-                        readings.add(reading);
+                    try {
+                        SensorReading reading = generateMockReading(sensorType);
+                        if (reading != null) {
+                            readings.add(reading);
+                        }
+                    } catch (Exception e) {
+                        // Prindem și logăm excepțiile individuale pentru fiecare senzor,
+                        // astfel încât să putem continua cu ceilalți senzori
+                        Log.e(TAG, "Error reading data for sensor " + sensorType, e);
                     }
                 }
 
-                Timber.d("Successfully read %d sensor readings", readings.size());
+                Log.d(TAG, "Successfully read " + readings.size() + " sensor readings");
                 return readings;
 
             } catch (Exception e) {
-                Timber.e(e, "Failed to read sensor data from Samsung Watch");
-                return readings;
+                Log.e(TAG, "Failed to read sensor data from Samsung Watch", e);
+                return readings; // Returnăm lista goală sau parțial completată
             }
         });
     }
 
-    private SensorReading readSpecificSensor(SensorType sensorType, TimeRangeFilter timeRange) {
-        try {
-            switch (sensorType) {
-                case HEART_RATE:
-                    return readHeartRate(timeRange);
-                case BLOOD_OXYGEN:
-                    return readBloodOxygen(timeRange);
-                case STEP_COUNT:
-                    return readStepCount(timeRange);
-                case SLEEP:
-                    return readSleepData(timeRange);
-                case BODY_TEMPERATURE:
-                    return readBodyTemperature(timeRange);
-                default:
-                    Timber.d("Sensor type %s not yet implemented", sensorType);
-                    return generateMockReading(sensorType);
-            }
-        } catch (Exception e) {
-            Timber.e(e, "Error reading sensor %s", sensorType);
-            return null;
-        }
-    }
-
-    private SensorReading readHeartRate(TimeRangeFilter timeRange) {
-        try {
-            // This is a simplified implementation
-            // In real implementation, you would use:
-            // ReadRecordsRequest<HeartRateRecord> request = new ReadRecordsRequest.Builder<>(HeartRateRecord.class)
-            //     .setTimeRangeFilter(timeRange)
-            //     .build();
-            // Response<ReadRecordsResponse<HeartRateRecord>> response = healthConnectClient.readRecords(request);
-
-            // For MVP, return mock data
-            return new SensorReading(SensorType.HEART_RATE, 72.0 + Math.random() * 20);
-        } catch (Exception e) {
-            Timber.e(e, "Error reading heart rate");
-            return null;
-        }
-    }
-
-    private SensorReading readBloodOxygen(TimeRangeFilter timeRange) {
-        return new SensorReading(SensorType.BLOOD_OXYGEN, 95.0 + Math.random() * 5);
-    }
-
-    private SensorReading readStepCount(TimeRangeFilter timeRange) {
-        return new SensorReading(SensorType.STEP_COUNT, Math.random() * 10000);
-    }
-
-    private SensorReading readSleepData(TimeRangeFilter timeRange) {
-        return new SensorReading(SensorType.SLEEP, 6.0 + Math.random() * 4);
-    }
-
-    private SensorReading readBodyTemperature(TimeRangeFilter timeRange) {
-        return new SensorReading(SensorType.BODY_TEMPERATURE, 36.0 + Math.random() * 2);
-    }
-
     private SensorReading generateMockReading(SensorType sensorType) {
-        // Generate realistic mock data for testing
+        // Păstrăm logica existentă pentru generarea datelor mock
         double value;
         switch (sensorType) {
             case HEART_RATE:
@@ -189,6 +141,12 @@ public class SamsungWatchManager extends WatchManager {
             case STRESS:
                 value = Math.random() * 100; // 0-100 stress score
                 break;
+            case SLEEP:
+                value = 6.0 + Math.random() * 4; // 6-10 hours
+                break;
+            case FALL_DETECTION:
+                value = Math.random() > 0.98 ? 1.0 : 0.0; // 2% chance of fall
+                break;
             default:
                 value = Math.random() * 100;
         }
@@ -200,10 +158,10 @@ public class SamsungWatchManager extends WatchManager {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 sensorFrequencies.put(sensorType, frequencySeconds);
-                Timber.d("Configured sensor %s frequency to %d seconds", sensorType, frequencySeconds);
+                Log.d(TAG, "Configured sensor " + sensorType + " frequency to " + frequencySeconds + " seconds");
                 return true;
             } catch (Exception e) {
-                Timber.e(e, "Failed to configure sensor frequency");
+                Log.e(TAG, "Failed to configure sensor frequency", e);
                 return false;
             }
         });
@@ -212,7 +170,14 @@ public class SamsungWatchManager extends WatchManager {
     @Override
     public CompletableFuture<Boolean> isDeviceAvailable() {
         return CompletableFuture.supplyAsync(() -> {
-            return HealthConnectClient.isProviderAvailable(context);
+            try {
+                // Folosim getSdkStatus în loc de isProviderAvailable
+                int status = HealthConnectClient.getSdkStatus(context);
+                return status == HealthConnectClient.SDK_AVAILABLE;
+            } catch (Exception e) {
+                Log.e(TAG, "Error checking device availability", e);
+                return false;
+            }
         });
     }
 
@@ -236,11 +201,12 @@ public class SamsungWatchManager extends WatchManager {
 
     private Set<String> getRequiredPermissions() {
         Set<String> permissions = new HashSet<>();
-        permissions.add(HealthPermission.getReadPermission(HeartRateRecord.class));
-        permissions.add(HealthPermission.getReadPermission(StepsRecord.class));
-        permissions.add(HealthPermission.getReadPermission(SleepSessionRecord.class));
-        permissions.add(HealthPermission.getReadPermission(OxygenSaturationRecord.class));
-        // Add more permissions as needed
+        // Health Connect permissions will be handled through manifest
+        // and runtime permission requests
+        permissions.add("android.permission.health.READ_HEART_RATE");
+        permissions.add("android.permission.health.READ_STEPS");
+        permissions.add("android.permission.health.READ_SLEEP");
+        permissions.add("android.permission.health.READ_OXYGEN_SATURATION");
         return permissions;
     }
 }

@@ -1,5 +1,6 @@
 package com.feri.watchmyparent.mobile.infrastructure.database.entities;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import androidx.room.ForeignKey;
@@ -26,6 +27,7 @@ import java.util.HashSet;
 public class MedicalProfileEntity {
 
     @PrimaryKey
+    @NonNull
     public String idMedicalProfile;
 
     public String userId;

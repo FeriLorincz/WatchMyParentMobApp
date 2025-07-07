@@ -1,6 +1,8 @@
 package com.feri.watchmyparent.mobile.infrastructure.database.entities;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 import androidx.room.ForeignKey;
 import androidx.room.Embedded;
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
 
 @Entity(
         tableName = "location_data",
+        indices = {@Index("userId")},
         foreignKeys = @ForeignKey(
                 entity = UserEntity.class,
                 parentColumns = "idUser",
@@ -19,6 +22,7 @@ import java.time.LocalDateTime;
 public class LocationDataEntity {
 
     @PrimaryKey
+    @NonNull
     public String idLocationData;
 
     public String userId;

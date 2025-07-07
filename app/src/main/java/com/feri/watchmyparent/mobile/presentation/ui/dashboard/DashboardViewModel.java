@@ -1,180 +1,190 @@
 package com.feri.watchmyparent.mobile.presentation.ui.dashboard;
 
+import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO;
-import com.feri.watchmyparent.mobile.application.dto.LocationDataDTO;
-import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
-import com.feri.watchmyparent.mobile.application.services.WatchConnectionApplicationService;
-import com.feri.watchmyparent.mobile.application.services.LocationApplicationService;
-import com.feri.watchmyparent.mobile.application.services.HealthDataApplicationService;
-import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
-import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
-import com.feri.watchmyparent.mobile.presentation.ui.common.BaseViewModel;
-import timber.log.Timber;
+import androidx.lifecycle.ViewModel;
 
+import com.feri.watchmyparent.mobile.domain.entities.LocationData;
+import com.feri.watchmyparent.mobile.domain.entities.SensorData;
+import com.feri.watchmyparent.mobile.domain.repositories.LocationDataRepository;
+import com.feri.watchmyparent.mobile.domain.repositories.SensorDataRepository;
+import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
+import com.feri.watchmyparent.mobile.infrastructure.services.WatchConnectionService;
+import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
 import javax.inject.Inject;
 import dagger.hilt.android.lifecycle.HiltViewModel;
+import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @HiltViewModel
-public class DashboardViewModel extends BaseViewModel {
+public class DashboardViewModel extends ViewModel {
 
-    private final WatchConnectionApplicationService watchService;
-    private final LocationApplicationService locationService;
-    private final HealthDataApplicationService healthDataService;
+    private static final String TAG = "DashboardViewModel";
 
-    private final MutableLiveData<WatchConnectionStatusDTO> _connectionStatus = new MutableLiveData<>();
-    private final MutableLiveData<LocationDataDTO> _locationStatus = new MutableLiveData<>();
-    private final MutableLiveData<List<SensorDataDTO>> _latestSensorData = new MutableLiveData<>();
+    private final SensorDataRepository sensorDataRepository;
+    private final LocationDataRepository locationDataRepository;
+    private final WatchConnectionService watchConnectionService;
+    private final PostgreSQLConfig postgreSQLConfig;
 
-    private String currentUserId = "demo-user-id"; // In real app, get from session
+    private final MutableLiveData<List<SensorData>> _sensorData = new MutableLiveData<>();
+    private final MutableLiveData<LocationStatus> _locationStatus = new MutableLiveData<>();
+    private final MutableLiveData<LocationData> _lastLocation = new MutableLiveData<>();
+    private final MutableLiveData<Boolean> _isWatchConnected = new MutableLiveData<>(false);
+    private final MutableLiveData<Boolean> _isDbConnected = new MutableLiveData<>(false);
+    private final MutableLiveData<String> _errorMessage = new MutableLiveData<>();
 
     @Inject
-    public DashboardViewModel(
-            WatchConnectionApplicationService watchService,
-            LocationApplicationService locationService,
-            HealthDataApplicationService healthDataService) {
-        this.watchService = watchService;
-        this.locationService = locationService;
-        this.healthDataService = healthDataService;
-    }
+    public DashboardViewModel(SensorDataRepository sensorDataRepository,
+                              LocationDataRepository locationDataRepository,
+                              WatchConnectionService watchConnectionService,
+                              PostgreSQLConfig postgreSQLConfig) {
+        this.sensorDataRepository = sensorDataRepository;
+        this.locationDataRepository = locationDataRepository;
+        this.watchConnectionService = watchConnectionService;
+        this.postgreSQLConfig = postgreSQLConfig;
 
-    public LiveData<WatchConnectionStatusDTO> getConnectionStatus() { return _connectionStatus; }
-    public LiveData<LocationDataDTO> getLocationStatus() { return _locationStatus; }
-    public LiveData<List<SensorDataDTO>> getLatestSensorData() { return _latestSensorData; }
-
-    public void loadDashboardData() {
-        setLoading(true);
-
-        // Load connection status
-        _connectionStatus.setValue(watchService.getCurrentStatus());
-
-        // Load location status
-        locationService.getCurrentUserLocation(currentUserId)
-                .thenAccept(location -> _locationStatus.postValue(location))
-                .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error loading location");
-                    return null;
-                });
-
-        // Load latest sensor data
-        healthDataService.getLatestSensorData(currentUserId)
-                .thenAccept(data -> {
-                    _latestSensorData.postValue(data);
-                    setLoading(false);
-                })
-                .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error loading sensor data");
-                    setError("Failed to load sensor data");
-                    return null;
-                });
-
-        // Test database connection
         testDatabaseConnection();
-        testPostgreSQLConnection();
+        loadSensorData();
+        loadLocationData();
     }
 
-    public void connectWatch() {
-        setLoading(true);
-        watchService.connectWatch()
-                .thenAccept(status -> {
-                    _connectionStatus.postValue(status);
-                    if (status.isConnected()) {
-                        setSuccess("Samsung Watch connected successfully");
-                        startDataCollection();
+    // Getters for LiveData objects
+    public LiveData<List<SensorData>> getSensorData() {
+        return _sensorData;
+    }
+
+    public LiveData<LocationStatus> getLocationStatus() {
+        return _locationStatus;
+    }
+
+    public LiveData<LocationData> getLastLocation() {
+        return _lastLocation;
+    }
+
+    public LiveData<Boolean> isWatchConnected() {
+        return _isWatchConnected;
+    }
+
+    public LiveData<Boolean> isDbConnected() {
+        return _isDbConnected;
+    }
+
+    public LiveData<String> getErrorMessage() {
+        return _errorMessage;
+    }
+
+    // Data loading methods
+    public void loadSensorData() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Adaptat la metodele de repository existente
+                List<SensorData> data = sensorDataRepository.findByUserId("demo-user-id", 10).join();
+                // Folosim postValue în loc de setValue pentru thread-uri de fundal
+                _sensorData.postValue(data);
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading sensor data: " + e.toString());
+                _errorMessage.postValue("Failed to load sensor data: " + e.toString());
+            }
+        });
+    }
+
+    public void loadLocationData() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Încercăm să obținem ultima locație
+                CompletableFuture<Optional<LocationData>> locationFuture =
+                        locationDataRepository.findByUserId("demo-user-id");
+
+                Optional<LocationData> locationOpt = locationFuture.join();
+
+                if (locationOpt.isPresent()) {
+                    LocationData location = locationOpt.get();
+                    _lastLocation.postValue(location);
+
+                    // Creăm un nou LocationStatus bazat pe date
+                    LocationStatus status = location.getLocationStatus();
+                    if (status != null) {
+                        _locationStatus.postValue(status);
                     } else {
-                        setError("Failed to connect to Samsung Watch");
+                        // Creăm un status default dacă nu există
+                        _locationStatus.postValue(new LocationStatus(
+                                "INACTIVE", 0, 0, "", LocalDateTime.now()));
                     }
-                })
-                .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error connecting watch");
-                    setError("Connection error: " + throwable.getMessage());
-                    return null;
-                });
+                } else {
+                    // Setăm un status default dacă nu există locație
+                    _locationStatus.postValue(new LocationStatus(
+                            "INACTIVE", 0, 0, "", LocalDateTime.now()));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading location data: " + e.toString());
+                _locationStatus.postValue(new LocationStatus(
+                        "ERROR", 0, 0, e.toString(), LocalDateTime.now()));
+            }
+        });
+    }
+
+    // Watch connection methods
+    public void connectWatch() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                boolean connected = watchConnectionService.connectWatch().join();
+                // Folosim postValue în loc de setValue pentru thread-uri de fundal
+                _isWatchConnected.postValue(connected);
+                if (!connected) {
+                    _errorMessage.postValue("Could not connect to watch");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error connecting watch: " + e.toString());
+                _isWatchConnected.postValue(false);
+                _errorMessage.postValue("Error connecting watch: " + e.toString());
+            }
+        });
     }
 
     public void disconnectWatch() {
-        setLoading(true);
-        watchService.disconnectWatch()
-                .thenAccept(status -> {
-                    _connectionStatus.postValue(status);
-                    setSuccess("Samsung Watch disconnected");
-                })
-                .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error disconnecting watch");
-                    setError("Disconnection error: " + throwable.getMessage());
-                    return null;
-                });
+        CompletableFuture.runAsync(() -> {
+            try {
+                boolean disconnected = watchConnectionService.disconnectWatch().join();
+                // Folosim postValue în loc de setValue pentru thread-uri de fundal
+                _isWatchConnected.postValue(!disconnected);
+                if (!disconnected) {
+                    _errorMessage.postValue("Could not disconnect from watch");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error disconnecting watch: " + e.toString());
+                _errorMessage.postValue("Error disconnecting watch: " + e.toString());
+            }
+        });
     }
 
-    private void startDataCollection() {
-        // Start collecting sensor data from all supported sensors
-        if (watchService.isConnected()) {
-            List<com.feri.watchmyparent.mobile.domain.enums.SensorType> allSensors =
-                    java.util.Arrays.asList(com.feri.watchmyparent.mobile.domain.enums.SensorType.values());
-
-            healthDataService.collectSensorData(currentUserId, allSensors)
-                    .thenAccept(data -> {
-                        _latestSensorData.postValue(data);
-                        Timber.d("Collected data from %d sensors", data.size());
-                    })
-                    .exceptionally(throwable -> {
-                        Timber.e(throwable, "Error collecting sensor data");
-                        return null;
-                    });
-        }
-
-        // Update location
-        locationService.updateUserLocation(currentUserId)
-                .thenAccept(location -> _locationStatus.postValue(location))
-                .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error updating location");
-                    return null;
-                });
-    }
-
-    public void refreshData() {
-        loadDashboardData();
-    }
-
-    public boolean isWatchConnected() {
-        WatchConnectionStatusDTO status = _connectionStatus.getValue();
-        return status != null && status.isConnected();
-    }
-
+    // Database connection testing
     private void testDatabaseConnection() {
-        PostgreSQLConfig.testConnection()
-                .thenAccept(connected -> {
-                    if (connected) {
-                        Timber.d("✅ PostgreSQL connection successful!");
-                        setSuccess("Database connected successfully");
-                    } else {
-                        Timber.e("❌ PostgreSQL connection failed!");
-                        setError("Database connection failed");
-                    }
-                });
+        CompletableFuture.runAsync(() -> {
+            try {
+                boolean connected = postgreSQLConfig.testConnection().join();
+                // Folosim postValue în loc de setValue pentru thread-uri de fundal
+                _isDbConnected.postValue(connected);
+                if (!connected) {
+                    Log.e(TAG, "❌ PostgreSQL connection failed!");
+                } else {
+                    Log.d(TAG, "✅ PostgreSQL connection successful!");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error testing database connection: " + e.toString());
+                _isDbConnected.postValue(false);
+                _errorMessage.postValue("Database connection error: " + e.toString());
+            }
+        });
     }
 
-    // Testează conexiunea PostgreSQL
-    private void testPostgreSQLConnection() {
-        PostgreSQLConfig.testConnection()
-                .thenAccept(connected -> {
-                    if (connected) {
-                        Timber.d("✅ PostgreSQL connection successful!");
-                        // Testează inserarea de date
-                        PostgreSQLDataService service = new PostgreSQLDataService();
-                        service.insertTestData()
-                                .thenAccept(inserted -> {
-                                    if (inserted) {
-                                        setSuccess("Database connection and insert successful!");
-                                    } else {
-                                        setError("Database connected but insert failed");
-                                    }
-                                });
-                    } else {
-                        setError("PostgreSQL connection failed");
-                    }
-                });
+    // Refresh all data
+    public void refreshData() {
+        loadSensorData();
+        loadLocationData();
+        testDatabaseConnection();
     }
 }

@@ -1,5 +1,6 @@
 package com.feri.watchmyparent.mobile.infrastructure.database.entities;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import androidx.room.Embedded;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 @Entity(tableName = "users")
 public class UserEntity {
     @PrimaryKey
+    @NonNull
     public String idUser;
 
     public String firstNameUser;

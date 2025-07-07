@@ -18,8 +18,16 @@ public class NetworkModule {
     @Provides
     @Singleton
     public HealthDataKafkaProducer provideKafkaProducer() {
+        // Returnăm direct instanța noastră mock, fără a initializa KafkaProducer real
         return new HealthDataKafkaProducer();
     }
+
+//   asta e cel bun!!!!
+//    @Provides
+//    @Singleton
+//    public HealthDataKafkaProducer provideKafkaProducer() {
+//        return new HealthDataKafkaProducer();
+//    }
 
     @Provides
     @Singleton

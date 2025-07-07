@@ -1,11 +1,11 @@
 package com.feri.watchmyparent.mobile.infrastructure.repositories;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.UserRepository;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.UserDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.UserEntity;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -30,10 +30,10 @@ public class UserRepositoryImpl implements UserRepository{
             try {
                 UserEntity entity = convertToEntity(user);
                 userDao.insertUser(entity);
-                Timber.d("User saved successfully: %s", user.getIdUser());
+                Log.d("UserRepositoryImpl", "User saved successfully: " + user.getIdUser());
                 return user;
             } catch (Exception e) {
-                Timber.e(e, "Error saving user: %s", user.getIdUser());
+                Log.e("UserRepositoryImpl", "Error saving user: " + user.getIdUser(), e);
                 throw new RuntimeException("Failed to save user", e);
             }
         }, executor);
@@ -46,7 +46,7 @@ public class UserRepositoryImpl implements UserRepository{
                 UserEntity entity = userDao.getUserById(id);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding user by id: %s", id);
+                Log.e("UserRepositoryImpl", "Error finding user by id: " + id, e);
                 return Optional.empty();
             }
         }, executor);
@@ -59,7 +59,7 @@ public class UserRepositoryImpl implements UserRepository{
                 UserEntity entity = userDao.getUserByEmail(email);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding user by email: %s", email);
+                Log.e("UserRepositoryImpl", "Error finding user by email: " + email, e);
                 return Optional.empty();
             }
         }, executor);
@@ -70,9 +70,9 @@ public class UserRepositoryImpl implements UserRepository{
         return CompletableFuture.runAsync(() -> {
             try {
                 userDao.deleteUserById(id);
-                Timber.d("User deleted successfully: %s", id);
+                Log.d("UserRepositoryImpl", "User deleted successfully: " + id);
             } catch (Exception e) {
-                Timber.e(e, "Error deleting user: %s", id);
+                Log.e("UserRepositoryImpl", "Error deleting user: " + id, e);
                 throw new RuntimeException("Failed to delete user", e);
             }
         }, executor);
@@ -84,7 +84,7 @@ public class UserRepositoryImpl implements UserRepository{
             try {
                 return userDao.existsByEmail(email);
             } catch (Exception e) {
-                Timber.e(e, "Error checking if user exists by email: %s", email);
+                Log.e("UserRepositoryImpl", "Error checking if user exists by email: " + email, e);
                 return false;
             }
         }, executor);

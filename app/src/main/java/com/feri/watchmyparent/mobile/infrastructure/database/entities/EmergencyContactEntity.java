@@ -1,5 +1,6 @@
 package com.feri.watchmyparent.mobile.infrastructure.database.entities;
 
+import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 import androidx.room.ForeignKey;
@@ -19,7 +20,9 @@ import java.time.LocalDateTime;
         indices = {@Index(value = "userId")}
 )
 public class EmergencyContactEntity {
+
     @PrimaryKey
+    @NonNull
     public String idContact;
 
     public String userId;

@@ -1,12 +1,12 @@
 package com.feri.watchmyparent.mobile.infrastructure.repositories;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.domain.entities.EmergencyContact;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.EmergencyContactRepository;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.EmergencyContactDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.EmergencyContactEntity;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.List;
@@ -33,11 +33,10 @@ public class EmergencyContactRepositoryImpl implements EmergencyContactRepositor
             try {
                 EmergencyContactEntity entity = convertToEntity(emergencyContact);
                 emergencyContactDao.insertEmergencyContact(entity);
-                Timber.d("Emergency contact saved: %s for user %s",
-                        emergencyContact.getIdContact(), emergencyContact.getUser().getIdUser());
+                Log.d("EmergencyContactRepositoryImpl", "Emergency contact saved: " + emergencyContact.getIdContact() + " for user " + emergencyContact.getUser().getIdUser());
                 return emergencyContact;
             } catch (Exception e) {
-                Timber.e(e, "Error saving emergency contact");
+                Log.e("EmergencyContactRepositoryImpl", "Error saving emergency contact", e);
                 throw new RuntimeException("Failed to save emergency contact", e);
             }
         }, executor);
@@ -50,7 +49,7 @@ public class EmergencyContactRepositoryImpl implements EmergencyContactRepositor
                 EmergencyContactEntity entity = emergencyContactDao.getEmergencyContactById(id);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding emergency contact by id: %s", id);
+                Log.e("EmergencyContactRepositoryImpl", "Error finding emergency contact by id: " + id, e);
                 return Optional.empty();
             }
         }, executor);
@@ -65,7 +64,7 @@ public class EmergencyContactRepositoryImpl implements EmergencyContactRepositor
                         .map(this::convertToDomain)
                         .collect(Collectors.toList());
             } catch (Exception e) {
-                Timber.e(e, "Error finding emergency contacts by user: %s", userId);
+                Log.e("EmergencyContactRepositoryImpl", "Error finding emergency contacts by user: " + userId, e);
                 throw new RuntimeException("Failed to find emergency contacts", e);
             }
         }, executor);
@@ -76,9 +75,9 @@ public class EmergencyContactRepositoryImpl implements EmergencyContactRepositor
         return CompletableFuture.runAsync(() -> {
             try {
                 emergencyContactDao.deleteEmergencyContactById(id);
-                Timber.d("Emergency contact deleted: %s", id);
+                Log.d("EmergencyContactRepositoryImpl", "Emergency contact deleted: " + id);
             } catch (Exception e) {
-                Timber.e(e, "Error deleting emergency contact: %s", id);
+                Log.e("EmergencyContactRepositoryImpl", "Error deleting emergency contact: " + id, e);
                 throw new RuntimeException("Failed to delete emergency contact", e);
             }
         }, executor);

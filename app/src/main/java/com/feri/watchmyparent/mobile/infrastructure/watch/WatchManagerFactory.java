@@ -1,7 +1,7 @@
 package com.feri.watchmyparent.mobile.infrastructure.watch;
 
 import android.content.Context;
-import timber.log.Timber;
+import android.util.Log;
 
 public class WatchManagerFactory {
 
@@ -14,10 +14,10 @@ public class WatchManagerFactory {
     public static WatchManager createSamsungWatchManager(Context context) {
         try {
             SamsungWatchManager manager = new SamsungWatchManager(context);
-            Timber.d("Created Samsung Watch Manager");
+            Log.d("WatchManagerFactory", "Created Samsung Watch Manager");
             return manager;
         } catch (Exception e) {
-            Timber.e(e, "Failed to create Samsung Watch Manager");
+            Log.e("WatchManagerFactory", "Failed to create Samsung Watch Manager", e);
             throw new RuntimeException("Unable to create Samsung Watch Manager", e);
         }
     }

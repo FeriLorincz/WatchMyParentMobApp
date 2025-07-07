@@ -1,12 +1,12 @@
 package com.feri.watchmyparent.mobile.infrastructure.repositories;
 
+import android.util.Log;
+
 import com.feri.watchmyparent.mobile.domain.entities.MedicalProfile;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.MedicalProfileRepository;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.MedicalProfileDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.MedicalProfileEntity;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -31,11 +31,10 @@ public class MedicalProfileRepositoryImpl implements MedicalProfileRepository {
             try {
                 MedicalProfileEntity entity = convertToEntity(medicalProfile);
                 medicalProfileDao.insertMedicalProfile(entity);
-                Timber.d("Medical profile saved: %s for user %s",
-                        medicalProfile.getIdMedicalProfile(), medicalProfile.getUser().getIdUser());
+                Log.d("MedicalProfileRepositoryImpl", "Medical profile saved: " + medicalProfile.getIdMedicalProfile() + " for user " + medicalProfile.getUser().getIdUser());
                 return medicalProfile;
             } catch (Exception e) {
-                Timber.e(e, "Error saving medical profile");
+                Log.e("MedicalProfileRepositoryImpl", "Error saving medical profile", e);
                 throw new RuntimeException("Failed to save medical profile", e);
             }
         }, executor);
@@ -48,7 +47,7 @@ public class MedicalProfileRepositoryImpl implements MedicalProfileRepository {
                 MedicalProfileEntity entity = medicalProfileDao.getMedicalProfileById(id);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding medical profile by id: %s", id);
+                Log.e("MedicalProfileRepositoryImpl", "Error finding medical profile by id: " + id, e);
                 return Optional.empty();
             }
         }, executor);
@@ -61,7 +60,7 @@ public class MedicalProfileRepositoryImpl implements MedicalProfileRepository {
                 MedicalProfileEntity entity = medicalProfileDao.getMedicalProfileByUser(userId);
                 return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
             } catch (Exception e) {
-                Timber.e(e, "Error finding medical profile by user: %s", userId);
+                Log.e("MedicalProfileRepositoryImpl", "Error finding medical profile by user: " + userId, e);
                 return Optional.empty();
             }
         }, executor);
@@ -72,9 +71,9 @@ public class MedicalProfileRepositoryImpl implements MedicalProfileRepository {
         return CompletableFuture.runAsync(() -> {
             try {
                 medicalProfileDao.deleteMedicalProfileById(id);
-                Timber.d("Medical profile deleted: %s", id);
+                Log.e("MedicalProfileRepositoryImpl", "Medical profile deleted: " + id);
             } catch (Exception e) {
-                Timber.e(e, "Error deleting medical profile: %s", id);
+                Log.e("MedicalProfileRepositoryImpl", "Error deleting medical profile", e);
                 throw new RuntimeException("Failed to delete medical profile", e);
             }
         }, executor);

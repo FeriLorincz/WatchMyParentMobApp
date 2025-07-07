@@ -22,7 +22,6 @@ public class RepositoryModule {
     @Provides
     @Singleton
     public SensorDataRepository provideSensorDataRepository(SensorDataDao sensorDataDao) {
-        // FIXARE: SensorDataRepositoryImpl nu are nevoie de UserRepository în constructor
         return new SensorDataRepositoryImpl(sensorDataDao);
     }
 

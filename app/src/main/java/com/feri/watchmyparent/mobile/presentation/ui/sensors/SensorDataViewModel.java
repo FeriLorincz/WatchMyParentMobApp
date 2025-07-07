@@ -1,13 +1,13 @@
 package com.feri.watchmyparent.mobile.presentation.ui.sensors;
 
+import android.util.Log;
+
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import com.feri.watchmyparent.mobile.application.dto.SensorConfigurationDTO;
 import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
 import com.feri.watchmyparent.mobile.application.services.HealthDataApplicationService;
 import com.feri.watchmyparent.mobile.presentation.ui.common.BaseViewModel;
-import timber.log.Timber;
-
 import javax.inject.Inject;
 import dagger.hilt.android.lifecycle.HiltViewModel;
 import java.util.List;
@@ -40,7 +40,7 @@ public class SensorDataViewModel extends BaseViewModel {
                     loadLatestSensorReadings();
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error loading sensor configurations");
+                    Log.e("SensorDataViewModel", "Error loading sensor configurations" + throwable.getMessage());
                     setError("Failed to load sensor configurations");
                     return null;
                 });
@@ -53,7 +53,7 @@ public class SensorDataViewModel extends BaseViewModel {
                     setLoading(false);
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error loading sensor data");
+                    Log.e("SensorDataViewModel", "Error loading sensor data" + throwable.getMessage());
                     setError("Failed to load sensor data");
                     return null;
                 });
@@ -68,7 +68,7 @@ public class SensorDataViewModel extends BaseViewModel {
                     loadSensorData(); // Refresh data
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error updating sensor frequency");
+                    Log.e("SensorDataViewModel", "Error updating sensor frequency" + throwable.getMessage());
                     setError("Failed to update sensor frequency");
                     return null;
                 });
@@ -84,7 +84,7 @@ public class SensorDataViewModel extends BaseViewModel {
                     loadSensorData(); // Refresh data
                 })
                 .exceptionally(throwable -> {
-                    Timber.e(throwable, "Error toggling sensor");
+                    Log.e("SensorDataViewModel", "Error toggling sensor" + throwable.getMessage());
                     setError("Failed to update sensor");
                     return null;
                 });
