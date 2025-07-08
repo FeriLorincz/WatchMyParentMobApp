@@ -100,4 +100,11 @@ public class SensorConfiguration {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+
+    // Get the unit of measure for this sensor configuration
+    // @return the unit of measure as String
+    public String getUnitOfMeasure() {
+        return this.sensorType != null ? this.sensorType.getUnit() : "";
+    }
 }

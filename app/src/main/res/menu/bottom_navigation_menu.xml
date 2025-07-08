@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/nav_personal_data"
-        android:title="@string/personal_data"
-        android:icon="@android:drawable/ic_menu_edit" />
-    <item
-        android:id="@+id/nav_medical_profile"
-        android:title="@string/medical_profile"
-        android:icon="@android:drawable/ic_menu_add" />
-    <item
-        android:id="@+id/nav_emergency_contacts"
-        android:title="@string/emergency_contacts"
-        android:icon="@android:drawable/ic_menu_call" />
-    <item
-        android:id="@+id/nav_sensor_data"
-        android:title="@string/sensor_data"
-        android:icon="@android:drawable/ic_menu_view" />
+<item
+    android:id="@+id/nav_personal_data"
+    android:icon="@android:drawable/ic_menu_info_details"
+    android:title="Personal Data" />
+
+<item
+    android:id="@+id/nav_medical_profile"
+    android:icon="@android:drawable/ic_menu_agenda"
+    android:title="Medical Profile" />
+
+<item
+    android:id="@+id/nav_emergency_contacts"
+    android:icon="@android:drawable/ic_menu_call"
+    android:title="Emergency Contacts" />
+
+<item
+    android:id="@+id/nav_sensor_data"
+    android:icon="@android:drawable/ic_menu_view"
+    android:title="Sensor Data" />
 </menu>

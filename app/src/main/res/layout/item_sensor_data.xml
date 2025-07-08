@@ -14,12 +14,13 @@
         android:orientation="horizontal"
         android:padding="12dp">
 
+        <!-- Transmission Status Indicator -->
         <View
             android:id="@+id/view_transmission_indicator"
             android:layout_width="4dp"
             android:layout_height="match_parent"
-            android:background="@color/pending_orange"
-            android:layout_marginEnd="12dp" />
+            android:layout_marginEnd="8dp"
+            android:background="@color/pending_orange" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -27,31 +28,37 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
+            <!-- Sensor Name -->
             <TextView
                 android:id="@+id/tv_sensor_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Heart Rate"
+                android:text="Sensor Name"
                 android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:textColor="@color/on_surface" />
 
+            <!-- Sensor Value -->
             <TextView
                 android:id="@+id/tv_sensor_value"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="72 bpm"
+                android:text="0.0 unit"
                 android:textSize="14sp"
-                android:textColor="@color/primary_blue" />
+                android:textColor="@color/on_surface"
+                android:layout_marginTop="2dp" />
 
         </LinearLayout>
 
+        <!-- Timestamp -->
         <TextView
             android:id="@+id/tv_timestamp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="14:30:25"
+            android:text="12:34:56"
             android:textSize="12sp"
-            android:textColor="@color/gray" />
+            android:textColor="@color/on_surface"
+            android:layout_gravity="center_vertical" />
 
     </LinearLayout>
 

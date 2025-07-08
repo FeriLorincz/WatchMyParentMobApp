@@ -5,11 +5,16 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.feri.watchmyparent.mobile.WatchMyParentApplication;
 import com.feri.watchmyparent.mobile.infrastructure.services.WatchDataCollectionService;
+import com.feri.watchmyparent.mobile.infrastructure.utils.DemoDataInitializer;
+import com.feri.watchmyparent.mobile.infrastructure.utils.HealthConnectChecker;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.feri.watchmyparent.mobile.R;
@@ -19,6 +24,9 @@ import com.feri.watchmyparent.mobile.presentation.ui.profile.PersonalDataActivit
 import com.feri.watchmyparent.mobile.presentation.ui.profile.MedicalProfileActivity;
 import com.feri.watchmyparent.mobile.presentation.ui.contacts.EmergencyContactsActivity;
 import com.feri.watchmyparent.mobile.presentation.adapters.SensorDataAdapter;
+
+import javax.inject.Inject;
+
 import dagger.hilt.android.AndroidEntryPoint;
 
 @AndroidEntryPoint
@@ -26,11 +34,17 @@ public class DashboardActivity extends BaseActivity {
 
     private DashboardViewModel viewModel;
     private Button connectWatchButton;
+    private Button collectDataButton;
+    private Button healthConnectButton;
     private TextView connectionStatusText;
     private TextView locationStatusText;
+    private TextView healthConnectStatusText;
     private RecyclerView latestSensorsRecyclerView;
     private SensorDataAdapter sensorAdapter;
     private BottomNavigationView bottomNavigation;
+
+    @Inject
+    DemoDataInitializer demoDataInitializer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +57,8 @@ public class DashboardActivity extends BaseActivity {
         setupRecyclerView();
         setupBottomNavigation();
         observeViewModel();
+        checkHealthConnectStatus();
+        initializeDemoDataIfNeeded();
         startBackgroundService();
 
         // Load initial data
@@ -51,8 +67,11 @@ public class DashboardActivity extends BaseActivity {
 
     private void initializeViews() {
         connectWatchButton = findViewById(R.id.btn_connect_watch);
+        collectDataButton = findViewById(R.id.btn_collect_data);
+        healthConnectButton = findViewById(R.id.btn_health_connect);
         connectionStatusText = findViewById(R.id.tv_connection_status);
         locationStatusText = findViewById(R.id.tv_location_status);
+        healthConnectStatusText = findViewById(R.id.tv_health_connect_status);
         latestSensorsRecyclerView = findViewById(R.id.rv_latest_sensors);
         bottomNavigation = findViewById(R.id.bottom_navigation);
 
@@ -63,6 +82,10 @@ public class DashboardActivity extends BaseActivity {
                 viewModel.connectWatch();
             }
         });
+
+        collectDataButton.setOnClickListener(v -> viewModel.collectSensorData());
+
+        healthConnectButton.setOnClickListener(v -> openHealthConnectSettings());
     }
 
     private void setupRecyclerView() {
@@ -91,6 +114,64 @@ public class DashboardActivity extends BaseActivity {
         });
     }
 
+    private void checkHealthConnectStatus() {
+        try {
+            HealthConnectChecker.HealthConnectStatus status =
+                    HealthConnectChecker.checkHealthConnectAvailability(this);
+
+            updateHealthConnectUI(status);
+
+        } catch (Exception e) {
+            healthConnectStatusText.setText("❌ Error checking Health Connect");
+            healthConnectButton.setVisibility(View.GONE);
+        }
+    }
+
+    private void updateHealthConnectUI(HealthConnectChecker.HealthConnectStatus status) {
+        healthConnectStatusText.setText(status.statusMessage);
+
+        if (!status.isAvailable) {
+            if (!status.isInstalled) {
+                healthConnectButton.setText("Install Health Connect");
+                healthConnectButton.setVisibility(View.VISIBLE);
+            } else {
+                healthConnectButton.setText("Check Health Connect");
+                healthConnectButton.setVisibility(View.VISIBLE);
+            }
+        } else {
+            healthConnectButton.setVisibility(View.GONE);
+        }
+    }
+
+    private void openHealthConnectSettings() {
+        try {
+            Intent intent = HealthConnectChecker.getHealthConnectInstallIntent();
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Cannot open Health Connect", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void initializeDemoDataIfNeeded() {
+        if (demoDataInitializer != null) {
+            demoDataInitializer.createDemoUserIfNeeded()
+                    .thenAccept(success -> {
+                        runOnUiThread(() -> {
+                            if (success) {
+                                showSuccess("Demo user initialized");
+                                viewModel.refreshData(); // Refresh data after user creation
+                            } else {
+                                showError("Failed to initialize demo user");
+                            }
+                        });
+                    });
+        } else {
+            // Try to get it from application
+            WatchMyParentApplication app = (WatchMyParentApplication) getApplication();
+            app.retryDemoDataInitialization();
+        }
+    }
+
     private void startBackgroundService() {
         Intent serviceIntent = new Intent(this, WatchDataCollectionService.class);
         startService(serviceIntent);
@@ -116,21 +197,31 @@ public class DashboardActivity extends BaseActivity {
         });
 
         viewModel.getIsLoading().observe(this, this::showLoading);
-        viewModel.getError().observe(this, this::showError);
-        viewModel.getSuccess().observe(this, this::showSuccess);
+        viewModel.getError().observe(this, error -> {
+            if (error != null && !error.isEmpty()) {
+                showError(error);
+            }
+        });
+        viewModel.getSuccess().observe(this, success -> {
+            if (success != null && !success.isEmpty()) {
+                showSuccess(success);
+            }
+        });
     }
 
     private void updateConnectionUI(com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO status) {
         if (status.isConnected()) {
             connectWatchButton.setText("Disconnect Watch");
-            connectWatchButton.setBackgroundColor(getColor(R.color.disconnect_red));
-            connectionStatusText.setText("Connected: " + status.getDeviceName());
+            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.disconnect_red));
+            connectionStatusText.setText("Connected: " + status.getDeviceName() + " (Simulated)");
             connectionStatusText.setTextColor(getColor(R.color.connected_green));
+            collectDataButton.setEnabled(true);
         } else {
             connectWatchButton.setText("Connect Watch");
-            connectWatchButton.setBackgroundColor(getColor(R.color.connect_blue));
+            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.connect_blue));
             connectionStatusText.setText("Disconnected");
             connectionStatusText.setTextColor(getColor(R.color.disconnected_red));
+            collectDataButton.setEnabled(false);
         }
     }
 
@@ -139,20 +230,30 @@ public class DashboardActivity extends BaseActivity {
             locationStatusText.setText("Status: HOME\n" + location.getAddress());
             locationStatusText.setTextColor(getColor(R.color.home_green));
         } else {
-            locationStatusText.setText("Status: AWAY\n" + location.getFormattedCoordinates() + "\n" + location.getAddress());
+            locationStatusText.setText("Status: " + location.getStatus() + "\n" +
+                    location.getFormattedCoordinates() + "\n" + location.getAddress());
             locationStatusText.setTextColor(getColor(R.color.away_orange));
         }
     }
 
     @Override
     protected void showLoading(boolean show) {
-        // Show/hide loading indicator
-        findViewById(R.id.progress_bar).setVisibility(show ? View.VISIBLE : View.GONE);
+        View progressBar = findViewById(R.id.progress_bar);
+        if (progressBar != null) {
+            progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+
+        // Disable buttons during loading
+        connectWatchButton.setEnabled(!show);
+        if (collectDataButton != null) {
+            collectDataButton.setEnabled(!show && viewModel.isWatchConnected());
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         viewModel.refreshData();
+        checkHealthConnectStatus(); // Check again in case user installed Health Connect
     }
 }

@@ -35,4 +35,7 @@ public interface SensorDataDao {
 
     @Query("DELETE FROM sensor_data WHERE idSensorData = :sensorDataId")
     int deleteSensorDataById(String sensorDataId);
+
+    @Query("SELECT * FROM sensor_data WHERE userId = :userId ORDER BY timestamp DESC LIMIT :limit")
+    List<SensorDataEntity> getSensorDataByUserWithLimit(String userId, int limit);
 }

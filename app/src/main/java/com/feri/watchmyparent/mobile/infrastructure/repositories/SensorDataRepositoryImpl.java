@@ -118,6 +118,28 @@ public class SensorDataRepositoryImpl implements SensorDataRepository{
         }, executor);
     }
 
+    // Metodă nouă implementată pentru DashboardViewModel
+    @Override
+    public CompletableFuture<List<SensorData>> findByUserId(String userId, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                List<SensorDataEntity> entities = sensorDataDao.getAllSensorDataByUser(userId);
+
+                // Limitează rezultatele la primul număr specificat
+                List<SensorDataEntity> limitedEntities = entities.stream()
+                        .limit(limit)
+                        .collect(Collectors.toList());
+
+                return limitedEntities.stream()
+                        .map(this::convertToDomain)
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                Log.e("SensorDataRepositoryImpl", "Error finding sensor data by user with limit", e);
+                throw new RuntimeException("Failed to find sensor data", e);
+            }
+        }, executor);
+    }
+
     private SensorDataEntity convertToEntity(SensorData sensorData) {
         SensorDataEntity entity = new SensorDataEntity();
         entity.idSensorData = sensorData.getIdSensorData();

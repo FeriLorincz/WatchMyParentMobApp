@@ -13,4 +13,5 @@ public interface SensorDataRepository {
     CompletableFuture<List<SensorData>> findLatestByUserId(String userId);
     CompletableFuture<Void> delete(String id);
     CompletableFuture<List<SensorData>> findPendingTransmissions();
+    CompletableFuture<List<SensorData>> findByUserId(String userId, int limit);
 }

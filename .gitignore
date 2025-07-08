@@ -4,7 +4,6 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 local.properties
-/app/build.gradle
 
 # Built application files
 *.apk
@@ -27,6 +26,7 @@ release/
 # Gradle files
 .gradle/
 build/
+app/build/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -108,4 +108,3 @@ app/schemas/
 # Sensitive information
 config.properties
 secrets.properties
-/app/
