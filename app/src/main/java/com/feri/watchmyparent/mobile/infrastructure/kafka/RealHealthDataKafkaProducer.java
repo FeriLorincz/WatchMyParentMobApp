@@ -20,15 +20,26 @@ public class RealHealthDataKafkaProducer {
     private static final String TAG = "RealKafkaProducer";
 
     // ✅ REAL Kafka Configuration
-    private static final String BOOTSTRAP_SERVERS = "10.0.2.2:9092"; // localhost pentru emulator
+    //private static final String BOOTSTRAP_SERVERS = "10.0.2.2:9092"; // localhost pentru emulator
+    private static final String BOOTSTRAP_SERVERS_DEBUG = "192.168.0.91:9092"; // Your computer IP
+    private static final String BOOTSTRAP_SERVERS_PROD = "kafka.watchmyparent.com:9092"; // Production
     private static final String HEALTH_DATA_TOPIC = "health-data-topic";
     private static final String LOCATION_DATA_TOPIC = "location-data-topic";
 
     private final KafkaProducer<String, String> producer;
     private final Gson gson;
     private volatile boolean isConnected = false;
+    private final String bootstrapServers;
 
     public RealHealthDataKafkaProducer() {
+        // Choose bootstrap servers based on build configuration
+        this.bootstrapServers = com.feri.watchmyparent.mobile.BuildConfig.DEBUG
+                ? BOOTSTRAP_SERVERS_DEBUG
+                : BOOTSTRAP_SERVERS_PROD;
+
+        Log.d(TAG, "✅ Initializing REAL Kafka Producer");
+        Log.d(TAG, "🔗 Bootstrap servers: " + bootstrapServers);
+
         this.gson = new GsonBuilder()
                 .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context)
                         -> context.serialize(src.toString()))
@@ -41,8 +52,8 @@ public class RealHealthDataKafkaProducer {
     private KafkaProducer<String, String> createKafkaProducer() {
         Properties props = new Properties();
 
-        // ✅ Real Kafka Producer Configuration
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        // ✅ Real Kafka Producer Configuration with dynamic IP
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
@@ -63,11 +74,11 @@ public class RealHealthDataKafkaProducer {
 
         try {
             KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(props);
-            Log.d(TAG, "✅ Real Kafka Producer created successfully");
+            Log.d(TAG, "✅ Real Kafka Producer created successfully with servers: " + bootstrapServers);
             return kafkaProducer;
         } catch (Exception e) {
-            Log.e(TAG, "❌ Failed to create Kafka Producer", e);
-            throw new RuntimeException("Failed to initialize Kafka Producer", e);
+            Log.e(TAG, "❌ Failed to create Real Kafka Producer", e);
+            throw new RuntimeException("Failed to initialize Real Kafka Producer", e);
         }
     }
 

@@ -14,7 +14,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.feri.watchmyparent.mobile.WatchMyParentApplication;
 import com.feri.watchmyparent.mobile.infrastructure.services.WatchDataCollectionService;
 import com.feri.watchmyparent.mobile.infrastructure.utils.DemoDataInitializer;
-import com.feri.watchmyparent.mobile.infrastructure.utils.HealthConnectChecker;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.feri.watchmyparent.mobile.R;
@@ -35,10 +34,12 @@ public class DashboardActivity extends BaseActivity {
     private DashboardViewModel viewModel;
     private Button connectWatchButton;
     private Button collectDataButton;
-    private Button healthConnectButton;
+    private Button testKafkaButton;
+    private Button testPostgreSQLButton;
     private TextView connectionStatusText;
     private TextView locationStatusText;
-    private TextView healthConnectStatusText;
+    private TextView kafkaStatusText;
+    private TextView postgresStatusText;
     private RecyclerView latestSensorsRecyclerView;
     private SensorDataAdapter sensorAdapter;
     private BottomNavigationView bottomNavigation;
@@ -57,7 +58,6 @@ public class DashboardActivity extends BaseActivity {
         setupRecyclerView();
         setupBottomNavigation();
         observeViewModel();
-        checkHealthConnectStatus();
         initializeDemoDataIfNeeded();
         startBackgroundService();
 
@@ -68,10 +68,12 @@ public class DashboardActivity extends BaseActivity {
     private void initializeViews() {
         connectWatchButton = findViewById(R.id.btn_connect_watch);
         collectDataButton = findViewById(R.id.btn_collect_data);
-        healthConnectButton = findViewById(R.id.btn_health_connect);
+        testKafkaButton = findViewById(R.id.btn_test_kafka);
+        testPostgreSQLButton = findViewById(R.id.btn_test_postgresql);
         connectionStatusText = findViewById(R.id.tv_connection_status);
         locationStatusText = findViewById(R.id.tv_location_status);
-        healthConnectStatusText = findViewById(R.id.tv_health_connect_status);
+        kafkaStatusText = findViewById(R.id.tv_kafka_status);
+        postgresStatusText = findViewById(R.id.tv_postgres_status);
         latestSensorsRecyclerView = findViewById(R.id.rv_latest_sensors);
         bottomNavigation = findViewById(R.id.bottom_navigation);
 
@@ -85,7 +87,9 @@ public class DashboardActivity extends BaseActivity {
 
         collectDataButton.setOnClickListener(v -> viewModel.collectSensorData());
 
-        healthConnectButton.setOnClickListener(v -> openHealthConnectSettings());
+        testKafkaButton.setOnClickListener(v -> viewModel.testKafkaConnection());
+
+        testPostgreSQLButton.setOnClickListener(v -> viewModel.testPostgreSQLConnection());
     }
 
     private void setupRecyclerView() {
@@ -112,44 +116,6 @@ public class DashboardActivity extends BaseActivity {
             }
             return false;
         });
-    }
-
-    private void checkHealthConnectStatus() {
-        try {
-            HealthConnectChecker.HealthConnectStatus status =
-                    HealthConnectChecker.checkHealthConnectAvailability(this);
-
-            updateHealthConnectUI(status);
-
-        } catch (Exception e) {
-            healthConnectStatusText.setText("❌ Error checking Health Connect");
-            healthConnectButton.setVisibility(View.GONE);
-        }
-    }
-
-    private void updateHealthConnectUI(HealthConnectChecker.HealthConnectStatus status) {
-        healthConnectStatusText.setText(status.statusMessage);
-
-        if (!status.isAvailable) {
-            if (!status.isInstalled) {
-                healthConnectButton.setText("Install Health Connect");
-                healthConnectButton.setVisibility(View.VISIBLE);
-            } else {
-                healthConnectButton.setText("Check Health Connect");
-                healthConnectButton.setVisibility(View.VISIBLE);
-            }
-        } else {
-            healthConnectButton.setVisibility(View.GONE);
-        }
-    }
-
-    private void openHealthConnectSettings() {
-        try {
-            Intent intent = HealthConnectChecker.getHealthConnectInstallIntent();
-            startActivity(intent);
-        } catch (Exception e) {
-            Toast.makeText(this, "Cannot open Health Connect", Toast.LENGTH_SHORT).show();
-        }
     }
 
     private void initializeDemoDataIfNeeded() {
@@ -196,6 +162,18 @@ public class DashboardActivity extends BaseActivity {
             }
         });
 
+        viewModel.getKafkaStatus().observe(this, status -> {
+            if (status != null) {
+                updateKafkaUI(status);
+            }
+        });
+
+        viewModel.getPostgreSQLStatus().observe(this, status -> {
+            if (status != null) {
+                updatePostgreSQLUI(status);
+            }
+        });
+
         viewModel.getIsLoading().observe(this, this::showLoading);
         viewModel.getError().observe(this, error -> {
             if (error != null && !error.isEmpty()) {
@@ -213,13 +191,13 @@ public class DashboardActivity extends BaseActivity {
         if (status.isConnected()) {
             connectWatchButton.setText("Disconnect Watch");
             connectWatchButton.setBackgroundTintList(getColorStateList(R.color.disconnect_red));
-            connectionStatusText.setText("Connected: " + status.getDeviceName() + " (Simulated)");
+            connectionStatusText.setText("✅ Connected: " + status.getDeviceName() + " (REAL Samsung Health SDK)");
             connectionStatusText.setTextColor(getColor(R.color.connected_green));
             collectDataButton.setEnabled(true);
         } else {
             connectWatchButton.setText("Connect Watch");
             connectWatchButton.setBackgroundTintList(getColorStateList(R.color.connect_blue));
-            connectionStatusText.setText("Disconnected");
+            connectionStatusText.setText("❌ Disconnected");
             connectionStatusText.setTextColor(getColor(R.color.disconnected_red));
             collectDataButton.setEnabled(false);
         }
@@ -227,12 +205,30 @@ public class DashboardActivity extends BaseActivity {
 
     private void updateLocationUI(com.feri.watchmyparent.mobile.application.dto.LocationDataDTO location) {
         if (location.isAtHome()) {
-            locationStatusText.setText("Status: HOME\n" + location.getAddress());
+            locationStatusText.setText("🏠 Status: HOME\n" + location.getAddress());
             locationStatusText.setTextColor(getColor(R.color.home_green));
         } else {
-            locationStatusText.setText("Status: " + location.getStatus() + "\n" +
+            locationStatusText.setText("📍 Status: " + location.getStatus() + "\n" +
                     location.getFormattedCoordinates() + "\n" + location.getAddress());
             locationStatusText.setTextColor(getColor(R.color.away_orange));
+        }
+    }
+
+    private void updateKafkaUI(String status) {
+        kafkaStatusText.setText(status);
+        if (status.contains("✅")) {
+            kafkaStatusText.setTextColor(getColor(R.color.connected_green));
+        } else {
+            kafkaStatusText.setTextColor(getColor(R.color.disconnected_red));
+        }
+    }
+
+    private void updatePostgreSQLUI(String status) {
+        postgresStatusText.setText(status);
+        if (status.contains("✅")) {
+            postgresStatusText.setTextColor(getColor(R.color.connected_green));
+        } else {
+            postgresStatusText.setTextColor(getColor(R.color.disconnected_red));
         }
     }
 
@@ -248,12 +244,17 @@ public class DashboardActivity extends BaseActivity {
         if (collectDataButton != null) {
             collectDataButton.setEnabled(!show && viewModel.isWatchConnected());
         }
+        if (testKafkaButton != null) {
+            testKafkaButton.setEnabled(!show);
+        }
+        if (testPostgreSQLButton != null) {
+            testPostgreSQLButton.setEnabled(!show);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         viewModel.refreshData();
-        checkHealthConnectStatus(); // Check again in case user installed Health Connect
     }
 }

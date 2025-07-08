@@ -2,6 +2,9 @@ package com.feri.watchmyparent.mobile.di;
 
 import com.feri.watchmyparent.mobile.application.services.*;
 import com.feri.watchmyparent.mobile.domain.repositories.*;
+import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
+import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
+import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
 import com.feri.watchmyparent.mobile.infrastructure.services.WatchConnectionService;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
@@ -17,7 +20,7 @@ import javax.inject.Singleton;
 @InstallIn(SingletonComponent.class)
 public class ServiceModule {
 
-    // ✅ Application Services - orchestrează business logic
+    // ✅ Application Services - orchestrează business logic REAL
     @Provides
     @Singleton
     public WatchConnectionApplicationService provideWatchConnectionService(WatchManager watchManager) {
@@ -30,17 +33,23 @@ public class ServiceModule {
             UserRepository userRepository,
             SensorDataRepository sensorDataRepository,
             SensorConfigurationRepository configurationRepository,
-            HealthDataKafkaProducer kafkaProducer) {
+            HealthDataKafkaProducer kafkaProducer,
+            PostgreSQLDataService postgreSQLDataService,
+            WatchManager watchManager) {
         return new HealthDataApplicationService(
-                userRepository, sensorDataRepository, configurationRepository, kafkaProducer);
+                userRepository, sensorDataRepository, configurationRepository,
+                kafkaProducer, postgreSQLDataService, watchManager);
     }
 
     @Provides
     @Singleton
     public LocationApplicationService provideLocationService(
             LocationDataRepository locationRepository,
-            UserRepository userRepository) {
-        return new LocationApplicationService(locationRepository, userRepository);
+            UserRepository userRepository,
+            RealHealthDataKafkaProducer kafkaProducer,
+            PostgreSQLDataService postgreSQLDataService) {
+        return new LocationApplicationService(
+                locationRepository, userRepository, kafkaProducer, postgreSQLDataService);
     }
 
     @Provides
@@ -51,13 +60,10 @@ public class ServiceModule {
         return new UserApplicationService(userRepository, configurationRepository);
     }
 
-//    // ✅ Infrastructure Services - păstrate pentru compatibilitate
-//    // NOTĂ: Acestea vor fi eliminate treptat în favoarea Application Services
-//    @Provides
-//    @Singleton
-//    public WatchConnectionService provideWatchConnectionService(
-//            android.content.Context context,
-//            com.feri.watchmyparent.mobile.infrastructure.watch.SamsungWatchManager samsungWatchManager) {
-//        return new WatchConnectionService(context, samsungWatchManager);
-//    }
+    // ✅ Infrastructure Services - real implementations
+    @Provides
+    @Singleton
+    public PostgreSQLDataService providePostgreSQLDataService(PostgreSQLConfig postgreSQLConfig) {
+        return new PostgreSQLDataService(postgreSQLConfig);
+    }
 }

@@ -2,7 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Health Connect Permissions -->
+    <!-- Samsung Health Permissions - REAL IMPLEMENTATION -->
+    <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY" />
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-permission android:name="android.permission.BODY_SENSORS_BACKGROUND" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <!-- Health Connect Permissions - for mock-data implementation -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_OXYGEN" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" />
@@ -25,17 +33,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Samsung Health -->
-    <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY" />
-
     <!-- Wake Lock -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-<!--    &lt;!&ndash; Health Connect Support &ndash;&gt;-->
-<!--    <uses-feature android:name="android.hardware.type.watch" android:required="false" />-->
-
     <!-- Notification Permission (for Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Foreground Service Permission -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
@@ -44,6 +47,12 @@
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.heart_rate" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+
+    <!-- Samsung Health Feature -->
+    <uses-feature android:name="com.samsung.android.providers.context" android:required="false" />
 
     <application
         android:name=".WatchMyParentApplication"
@@ -54,10 +63,16 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.WatchMyParentMobApp"
         tools:targetApi="31">
 
-        <!-- Health Connect Intent Filter -->
+        <!-- Samsung Health Permission Activity -->
+        <activity
+            android:name="com.samsung.android.sdk.healthdata.HealthPermissionActivity"
+            android:exported="false" />
+
+        <!-- Health Connect Intent Filter - de sters acest activity-alias-->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -102,6 +117,29 @@
             android:parentActivityName=".presentation.ui.dashboard.DashboardActivity"
             android:exported="false" />
 
+        <!-- Main Activity (fallback) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
+        <!-- Background Service -->
+        <service
+            android:name=".infrastructure.services.WatchDataCollectionService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <!-- Samsung Health Data Service -->
+        <service
+            android:name="com.samsung.android.sdk.healthdata.HealthDataService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Samsung Health Provider -->
+        <provider
+            android:name="com.samsung.android.sdk.healthdata.HealthDataProvider"
+            android:authorities="${applicationId}.healthdata"
+            android:exported="false" />
 
         <!--        &lt;!&ndash; Auth Activities &ndash;&gt;-->
 <!--        <activity-->
@@ -113,15 +151,15 @@
 <!--            android:theme="@style/Theme.WatchMyParent.NoActionBar" />-->
 
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+<!--        <activity - de sters-->
+<!--            android:name=".MainActivity"-->
+<!--            android:exported="true">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN" />-->
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+<!--                <category android:name="android.intent.category.LAUNCHER" />-->
+<!--            </intent-filter>-->
+<!--        </activity>-->
 
 
         <!-- Background Service -->

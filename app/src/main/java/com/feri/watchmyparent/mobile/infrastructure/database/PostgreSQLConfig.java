@@ -15,7 +15,7 @@ public class PostgreSQLConfig {
 
     private static final String TAG = "PostgreSQLConfig";
 
-    // Configurare pentru conexiunea la baza de date
+    // ✅ REAL PostgreSQL Configuration
     private final String jdbcUrl;
     private final String username;
     private final String password;
@@ -23,38 +23,83 @@ public class PostgreSQLConfig {
 
     @Inject
     public PostgreSQLConfig() {
-        // Folosim aceleași valori configurate anterior
-        this.jdbcUrl = "jdbc:postgresql://10.0.2.2:5432/watch_my_parent";  // localhost pentru emulator
+
+        // ✅ Use BuildConfig for dynamic configuration
+        String host = BuildConfig.DEBUG ? "192.168.0.91" : "db.watchmyparent.com";
+        String port = BuildConfig.DEBUG ? "5432" : "5432";
+        String database = BuildConfig.DEBUG ? "watch_my_parent" : "watch_my_parent";
+
+        this.jdbcUrl = String.format("jdbc:postgresql://%s:%s/%s", host, port, database);
         this.username = "postgres";
-        this.password = "Atelierele12";
+        this.password = "Atelierele12"; // In production, use secure method
+
+        Log.d(TAG, "✅ PostgreSQL Config initialized: " + (BuildConfig.DEBUG ? "DEBUG" : "PRODUCTION"));
+        Log.d(TAG, "🔗 Database URL: " + jdbcUrl);
+
+//        // ✅ Use BuildConfig for dynamic IP configuration
+//        if (BuildConfig.DEBUG) {
+//            // Debug - folosește IP-ul local al computerului tău
+//            this.jdbcUrl = "jdbc:postgresql://192.168.0.91:5432/watch_my_parent";
+//        } else {
+//            // Production - folosește server-ul real
+//            this.jdbcUrl = "jdbc:postgresql://10.0.2.2:5432/watch_my_parent";  // localhost pentru emulator
+//        }
+//
+//        this.username = "postgres";
+//        this.password = "Atelierele12";
+//
+//        Log.d(TAG, "✅ PostgreSQL Config initialized: " + (BuildConfig.DEBUG ? "DEBUG" : "PRODUCTION"));
+//        Log.d(TAG, "🔗 Database URL: " + jdbcUrl);
     }
 
     public CompletableFuture<Connection> getConnection() {
         // Dacă suntem în modul offline, returnăm o promisiune eșuată imediat
         if (isOfflineMode) {
             CompletableFuture<Connection> future = new CompletableFuture<>();
-            future.completeExceptionally(new RuntimeException("Application is in offline mode"));
+            future.completeExceptionally(new RuntimeException("Application is in offline mode - PostgreSQL not available"));
             return future;
         }
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Setăm timeout pentru conexiune la 10 secunde
+                Log.d(TAG, "🔄 Attempting real PostgreSQL connection...");
+
+                // Setăm timeout pentru conexiune la 15 secunde
                 java.util.Properties props = new java.util.Properties();
                 props.setProperty("user", username);
                 props.setProperty("password", password);
-                props.setProperty("connectTimeout", "10");
+                props.setProperty("connectTimeout", "15");
+                props.setProperty("socketTimeout", "30");
+                props.setProperty("loginTimeout", "15");
 
-                // Încercăm să ne conectăm
+                // Încarcă driver-ul PostgreSQL
                 Class.forName("org.postgresql.Driver");
+
+                // Încercăm să ne conectăm REAL
                 Connection connection = DriverManager.getConnection(jdbcUrl, props);
-                Log.d(TAG, "Successfully connected to PostgreSQL database");
-                return connection;
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to connect to PostgreSQL database", e);
-                // Dacă conexiunea eșuează, activăm modul offline
+
+                // Test conexiunea
+                if (connection != null && !connection.isClosed()) {
+                    Log.d(TAG, "✅ REAL PostgreSQL connection established successfully!");
+                    Log.d(TAG, "📊 Database: " + connection.getCatalog());
+                    return connection;
+                } else {
+                    throw new SQLException("Connection is null or closed");
+                }
+
+            } catch (ClassNotFoundException e) {
+                Log.e(TAG, "❌ PostgreSQL driver not found", e);
                 isOfflineMode = true;
-                throw new RuntimeException("Database connection failed", e);
+                throw new RuntimeException("PostgreSQL driver not found", e);
+            } catch (SQLException e) {
+                Log.e(TAG, "❌ REAL PostgreSQL connection failed: " + e.getMessage(), e);
+                Log.w(TAG, "⚠️ Switching to offline mode - PostgreSQL unavailable");
+                isOfflineMode = true;
+                throw new RuntimeException("Real PostgreSQL connection failed", e);
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Unexpected error during PostgreSQL connection", e);
+                isOfflineMode = true;
+                throw new RuntimeException("Unexpected database error", e);
             }
         });
     }
@@ -63,28 +108,43 @@ public class PostgreSQLConfig {
         if (connection != null) {
             try {
                 connection.close();
-                Log.d(TAG, "Database connection closed");
+                Log.d(TAG, "🔌 Real PostgreSQL connection closed");
             } catch (SQLException e) {
-                Log.e(TAG, "Error closing database connection", e);
+                Log.e(TAG, "❌ Error closing PostgreSQL connection", e);
             }
         }
     }
 
     public CompletableFuture<Boolean> testConnection() {
         if (isOfflineMode) {
+            Log.w(TAG, "⚠️ PostgreSQL in offline mode, skipping connection test");
             return CompletableFuture.completedFuture(false);
         }
 
         return CompletableFuture.supplyAsync(() -> {
             Connection connection = null;
             try {
+                Log.d(TAG, "🧪 Testing REAL PostgreSQL connection...");
+
                 connection = getConnection().join();
                 if (connection != null && !connection.isClosed()) {
-                    return true;
+                    // Test cu un query simplu
+                    boolean isValid = connection.isValid(10); // 10 seconds timeout
+
+                    if (isValid) {
+                        Log.d(TAG, "✅ PostgreSQL connection test PASSED");
+                        return true;
+                    } else {
+                        Log.w(TAG, "⚠️ PostgreSQL connection test FAILED - invalid connection");
+                        return false;
+                    }
+                } else {
+                    Log.w(TAG, "⚠️ PostgreSQL connection test FAILED - null connection");
+                    return false;
                 }
-                return false;
+
             } catch (Exception e) {
-                Log.e(TAG, "Database connection test failed", e);
+                Log.e(TAG, "❌ PostgreSQL connection test FAILED", e);
                 isOfflineMode = true;
                 return false;
             } finally {
@@ -97,12 +157,21 @@ public class PostgreSQLConfig {
 
     // Metodă pentru a reseta modul offline și a încerca din nou conexiunea
     public void resetOfflineMode() {
+        Log.d(TAG, "🔄 Resetting offline mode - will retry PostgreSQL connection");
         this.isOfflineMode = false;
     }
 
     // Getter pentru a verifica dacă suntem în modul offline
     public boolean isOfflineMode() {
         return isOfflineMode;
+    }
+
+    public String getConnectionInfo() {
+        return "PostgreSQL: " + jdbcUrl + " (User: " + username + ")";
+    }
+
+    public String getJdbcUrl() {
+        return jdbcUrl;
     }
 }
 

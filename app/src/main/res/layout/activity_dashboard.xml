@@ -15,14 +15,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Health Connect Status Section -->
+            <!-- Real Implementation Status -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardElevation="4dp"
                 app:cardCornerRadius="8dp"
-                app:cardBackgroundColor="@color/surface">
+                app:cardBackgroundColor="@color/primary_container">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -33,34 +33,24 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Health Connect Status"
+                        android:text="🚀 REAL Implementation Status"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@color/on_surface" />
+                        android:textColor="@color/on_primary_container" />
 
                     <TextView
-                        android:id="@+id/tv_health_connect_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Checking..."
-                        android:textSize="14sp"
+                        android:text="✅ Samsung Health SDK • ✅ Real Kafka • ✅ Real PostgreSQL"
+                        android:textSize="12sp"
                         android:layout_marginTop="4dp"
-                        android:textColor="@color/on_surface" />
-
-                    <Button
-                        android:id="@+id/btn_health_connect"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="Install Health Connect"
-                        android:visibility="gone"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
+                        android:textColor="@color/on_primary_container" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Watch Connection Section -->
+            <!-- Samsung Watch Connection Section -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -77,7 +67,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Samsung Galaxy Watch 7"
+                        android:text="📱 Samsung Galaxy Watch 7"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
@@ -102,9 +92,68 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Collect Sensor Data"
+                        android:text="Collect REAL Sensor Data"
                         android:enabled="false"
                         android:backgroundTint="@color/collect_green" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Infrastructure Status Section -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔧 Infrastructure Status"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <!-- Kafka Status -->
+                    <TextView
+                        android:id="@+id/tv_kafka_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⏳ Kafka: Testing..."
+                        android:textSize="14sp"
+                        android:layout_marginTop="8dp" />
+
+                    <Button
+                        android:id="@+id/btn_test_kafka"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Test Kafka Connection"
+                        style="@style/Widget.Material3.Button.OutlinedButton" />
+
+                    <!-- PostgreSQL Status -->
+                    <TextView
+                        android:id="@+id/tv_postgres_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⏳ PostgreSQL: Testing..."
+                        android:textSize="14sp"
+                        android:layout_marginTop="8dp" />
+
+                    <Button
+                        android:id="@+id/btn_test_postgresql"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Test PostgreSQL Connection"
+                        style="@style/Widget.Material3.Button.OutlinedButton" />
 
                 </LinearLayout>
 
@@ -127,7 +176,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Location Status"
+                        android:text="📍 Location Status"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
@@ -147,7 +196,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Latest Sensor Readings"
+                android:text="📊 Latest REAL Sensor Readings"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />

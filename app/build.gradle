@@ -29,8 +29,12 @@ android {
         debug {
             debuggable true
             minifyEnabled false
-            buildConfigField "String", "API_BASE_URL", "\"http://localhost:8080/\""
-            buildConfigField "String", "KAFKA_BOOTSTRAP_SERVERS", "\"localhost:9092\""
+            // ✅ REAL IP ADDRESSES - Replace with your actual computer IP
+            buildConfigField "String", "API_BASE_URL", "\"http://192.168.0.91:8080/\""
+            buildConfigField "String", "KAFKA_BOOTSTRAP_SERVERS", "\"192.168.0.91:9092\""
+            buildConfigField "String", "POSTGRESQL_HOST", "\"192.168.0.91\""
+            buildConfigField "String", "POSTGRESQL_PORT", "\"5432\""
+            buildConfigField "String", "POSTGRESQL_DB", "\"watch_my_parent\""
             buildConfigField "boolean", "DEBUG_MODE", "true"
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
@@ -38,8 +42,12 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // ✅ PRODUCTION SERVERS
             buildConfigField "String", "API_BASE_URL", "\"https://api.watchmyparent.com/\""
             buildConfigField "String", "KAFKA_BOOTSTRAP_SERVERS", "\"kafka.watchmyparent.com:9092\""
+            buildConfigField "String", "POSTGRESQL_HOST", "\"db.watchmyparent.com\""
+            buildConfigField "String", "POSTGRESQL_PORT", "\"5432\""
+            buildConfigField "String", "POSTGRESQL_DB", "\"watch_my_parent\""
             buildConfigField "boolean", "DEBUG_MODE", "false"
         }
     }
@@ -53,6 +61,14 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
     }
 }
 
@@ -88,7 +104,11 @@ dependencies {
     implementation 'com.google.dagger:hilt-android:2.48'
     annotationProcessor 'com.google.dagger:hilt-compiler:2.48'
 
-    // Health Connect
+    // Samsung Health SDK - REAL IMPLEMENTATION
+    implementation 'com.samsung.android:health:6.23.0'
+    implementation 'com.samsung.android:health-data:6.23.0'
+
+    // Health Connect - pt varianta mock-uita ce se poate sterge fara probleme
     implementation 'androidx.health.connect:connect-client:1.1.0-alpha06'
 
     // Location Services
@@ -104,7 +124,7 @@ dependencies {
     // JSON Processing
     implementation 'com.google.code.gson:gson:2.10.1'
 
-    // Apache Kafka Client
+    // Apache Kafka Client - REAL IMPLEMENTATION
     implementation('org.apache.kafka:kafka-clients:3.4.0') {
         exclude group: 'org.slf4j', module: 'slf4j-api'
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
@@ -114,12 +134,10 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:1.7.36'
     implementation 'org.slf4j:slf4j-simple:1.7.36'
 
-    // PostgreSQL JDBC (for direct connection - not recommended for production)
+    // PostgreSQL JDBC - Real Implementation (for direct connection - not recommended for production)
     implementation 'org.postgresql:postgresql:42.6.0'
 
     // Permissions - Using EasyPermissions from GitHub
-    //implementation 'com.github.vmadalin:easypermissions-ktx:1.0.0'
-    //implementation 'com.github.vmadalin:easypermissions-ktx:master-SNAPSHOT'
     implementation 'com.github.fondesa:kpermissions:3.4.0'
 
 

@@ -12,6 +12,7 @@ import com.feri.watchmyparent.mobile.domain.repositories.SensorDataRepository;
 import com.feri.watchmyparent.mobile.domain.repositories.SensorConfigurationRepository;
 import com.feri.watchmyparent.mobile.domain.repositories.UserRepository;
 import com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading;
+import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
@@ -34,26 +35,34 @@ public class HealthDataApplicationService {
     private final SensorDataRepository sensorDataRepository;
     private final SensorConfigurationRepository configurationRepository;
     private final HealthDataKafkaProducer kafkaProducer;
+    private final PostgreSQLDataService postgreSQLDataService;
+    private final WatchManager watchManager;
 
     @Inject
     public HealthDataApplicationService(
             UserRepository userRepository,
             SensorDataRepository sensorDataRepository,
             SensorConfigurationRepository configurationRepository,
-            HealthDataKafkaProducer kafkaProducer) {
+            HealthDataKafkaProducer kafkaProducer,
+            PostgreSQLDataService postgreSQLDataService,
+            WatchManager watchManager) {
         this.userRepository = userRepository;
         this.sensorDataRepository = sensorDataRepository;
         this.configurationRepository = configurationRepository;
         this.kafkaProducer = kafkaProducer;
+        this.postgreSQLDataService = postgreSQLDataService;
+        this.watchManager = watchManager;
     }
 
-    // ✅ Collect sensor data - orchestrates the entire flow
+    // ✅ Collect sensor data - REAL IMPLEMENTATION
     public CompletableFuture<List<SensorData>> collectSensorData(String userId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                Log.d(TAG, "🔄 Starting REAL sensor data collection for user: " + userId);
+
                 Optional<User> userOptional = userRepository.findById(userId).join();
                 if (!userOptional.isPresent()) {
-                    Log.w(TAG, "User not found: " + userId);
+                    Log.w(TAG, "❌ User not found: " + userId);
                     return new ArrayList<>();
                 }
 
@@ -62,27 +71,93 @@ public class HealthDataApplicationService {
                 // Get sensor configurations for this user
                 List<SensorConfiguration> configurations = configurationRepository.findByUserId(userId).join();
                 if (configurations.isEmpty()) {
-                    Log.w(TAG, "No sensor configurations found for user: " + userId);
+                    Log.w(TAG, "⚠️ No sensor configurations found for user: " + userId);
                     return new ArrayList<>();
                 }
 
-                // Simulate sensor data collection (in real implementation, this would connect to watch)
-                List<SensorData> collectedData = simulateSensorDataCollection(user, configurations);
+                // Get enabled sensor types
+                List<SensorType> enabledSensorTypes = configurations.stream()
+                        .filter(SensorConfiguration::isEnabled)
+                        .map(SensorConfiguration::getSensorType)
+                        .collect(Collectors.toList());
 
-                // Save and transmit each piece of data
-                for (SensorData data : collectedData) {
-                    sensorDataRepository.save(data).join();
-                    kafkaProducer.sendHealthData(data, userId);
+                if (enabledSensorTypes.isEmpty()) {
+                    Log.w(TAG, "⚠️ No enabled sensors for user: " + userId);
+                    return new ArrayList<>();
                 }
 
-                Log.d(TAG, "Successfully collected " + collectedData.size() + " sensor readings for user " + userId);
+                // ✅ REAL DATA COLLECTION from Samsung Health SDK
+                List<SensorReading> realReadings = collectRealSensorData(enabledSensorTypes);
+
+                // Convert to SensorData entities
+                List<SensorData> collectedData = convertReadingsToSensorData(user, realReadings);
+
+                // Save locally, send via Kafka, and store in PostgreSQL
+                for (SensorData data : collectedData) {
+                    // Save to local Room database
+                    sensorDataRepository.save(data).join();
+
+                    // Send via Kafka (real)
+                    kafkaProducer.sendHealthData(data, userId);
+
+                    // Save to PostgreSQL (real)
+                    postgreSQLDataService.insertSensorData(data);
+                }
+
+                Log.d(TAG, "✅ Successfully collected " + collectedData.size() + " REAL sensor readings for user " + userId);
                 return collectedData;
 
             } catch (Exception e) {
-                Log.e(TAG, "Error collecting sensor data for user " + userId, e);
+                Log.e(TAG, "❌ Error collecting REAL sensor data for user " + userId, e);
                 return new ArrayList<>();
             }
         });
+    }
+
+    private List<SensorReading> collectRealSensorData(List<SensorType> sensorTypes) {
+        try {
+            if (!watchManager.isConnected()) {
+                Log.w(TAG, "⚠️ Watch not connected, attempting to connect...");
+                boolean connected = watchManager.connect().join();
+                if (!connected) {
+                    Log.e(TAG, "❌ Failed to connect to watch for real data collection");
+                    return new ArrayList<>();
+                }
+            }
+
+            // ✅ READ REAL DATA from Samsung Health SDK
+            List<SensorReading> readings = watchManager.readSensorData(sensorTypes).join();
+
+            Log.d(TAG, "📊 Collected " + readings.size() + " REAL sensor readings");
+            for (SensorReading reading : readings) {
+                Log.d(TAG, "📊 REAL: " + reading.getSensorType() + " = " + reading.getValue() + " " + reading.getUnit());
+            }
+
+            return readings;
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error collecting real sensor data from watch", e);
+            return new ArrayList<>();
+        }
+    }
+
+    private List<SensorData> convertReadingsToSensorData(User user, List<SensorReading> readings) {
+        List<SensorData> sensorDataList = new ArrayList<>();
+
+        for (SensorReading reading : readings) {
+            SensorData sensorData = new SensorData();
+            sensorData.setIdSensorData(java.util.UUID.randomUUID().toString());
+            sensorData.setUser(user);
+            sensorData.setSensorType(reading.getSensorType());
+            sensorData.setValue(reading.getValue());
+            sensorData.setTimestamp(reading.getTimestamp());
+            sensorData.setUnit(reading.getUnit());
+            sensorData.setDeviceId(watchManager.getDeviceId());
+
+            sensorDataList.add(sensorData);
+        }
+
+        return sensorDataList;
     }
 
     // ✅ Overloaded method for specific sensor types
@@ -110,7 +185,7 @@ public class HealthDataApplicationService {
                         .collect(Collectors.toList()));
     }
 
-    // ✅ Update sensor configuration
+    // ✅ Update sensor configuration - with REAL watch configuration
     public CompletableFuture<SensorConfigurationDTO> updateSensorConfiguration(String userId, SensorConfigurationDTO configDTO) {
         return userRepository.findById(userId)
                 .thenCompose(userOpt -> {
@@ -131,13 +206,21 @@ public class HealthDataApplicationService {
                                     config.setEnabled(configDTO.isEnabled());
                                 }
 
+                                // ✅ Configure REAL sensor frequency on watch
+                                if (watchManager.isConnected()) {
+                                    watchManager.configureSensorFrequency(
+                                            configDTO.getSensorType(),
+                                            configDTO.getFrequencySeconds()
+                                    );
+                                }
+
                                 return configurationRepository.save(config)
                                         .thenApply(this::convertToConfigDTO);
                             });
                 });
     }
 
-    // ✅ Retry failed transmissions
+    // ✅ Retry failed transmissions - with real Kafka and PostgreSQL
     public CompletableFuture<Boolean> retryFailedTransmissions(String userId) {
         return sensorDataRepository.findPendingTransmissions()
                 .thenCompose(pendingData -> {
@@ -153,58 +236,15 @@ public class HealthDataApplicationService {
                 });
     }
 
-    // ✅ Private helper methods
-    private List<SensorData> simulateSensorDataCollection(User user, List<SensorConfiguration> configurations) {
-        List<SensorData> data = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
-
-        for (SensorConfiguration config : configurations) {
-            if (config.isEnabled()) {
-                SensorData sensorData = new SensorData();
-                sensorData.setIdSensorData(java.util.UUID.randomUUID().toString());
-                sensorData.setUser(user);
-                sensorData.setSensorType(config.getSensorType());
-                sensorData.setTimestamp(now);
-                sensorData.setUnit(config.getSensorType().getUnit());
-                sensorData.setDeviceId("samsung_galaxy_watch_7");
-
-                // Generate realistic mock values based on sensor type
-                sensorData.setValue(generateMockValue(config.getSensorType()));
-                data.add(sensorData);
-            }
-        }
-
-        return data;
-    }
-
-    private double generateMockValue(SensorType sensorType) {
-        switch (sensorType) {
-            case HEART_RATE:
-                return 60 + Math.random() * 40; // 60-100 bpm
-            case BLOOD_OXYGEN:
-                return 95 + Math.random() * 5; // 95-100%
-            case BLOOD_PRESSURE:
-                return 120 + Math.random() * 40; // 120-160 mmHg
-            case BODY_TEMPERATURE:
-                return 36.0 + Math.random() * 2; // 36-38°C
-            case STEP_COUNT:
-                return Math.random() * 1000; // 0-1000 steps
-            case STRESS:
-                return Math.random() * 100; // 0-100 stress score
-            case SLEEP:
-                return 6.0 + Math.random() * 4; // 6-10 hours
-            case FALL_DETECTION:
-                return Math.random() > 0.98 ? 1.0 : 0.0; // 2% chance of fall
-            default:
-                return Math.random() * 100;
-        }
-    }
-
     private CompletableFuture<Boolean> retryTransmission(SensorData sensorData) {
         return kafkaProducer.sendHealthData(sensorData, sensorData.getUser().getIdUser())
                 .thenCompose(transmitted -> {
                     if (transmitted) {
                         sensorData.markAsTransmitted();
+
+                        // Also try PostgreSQL
+                        postgreSQLDataService.insertSensorData(sensorData);
+
                         return sensorDataRepository.save(sensorData)
                                 .thenApply(saved -> true);
                     }

@@ -12,6 +12,8 @@ import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
 import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdapter;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
+import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
+import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
 //import timber.log.Timber;
 
 import javax.inject.Inject;
@@ -28,26 +30,34 @@ public class LocationApplicationService {
 
     private final LocationDataRepository locationDataRepository;
     private final UserRepository userRepository;
+    private final RealHealthDataKafkaProducer kafkaProducer;
+    private final PostgreSQLDataService postgreSQLDataService;
 
     @Inject
     public LocationApplicationService(
             LocationDataRepository locationDataRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            RealHealthDataKafkaProducer kafkaProducer,
+            PostgreSQLDataService postgreSQLDataService) {
         this.locationDataRepository = locationDataRepository;
         this.userRepository = userRepository;
+        this.kafkaProducer = kafkaProducer;
+        this.postgreSQLDataService = postgreSQLDataService;
     }
 
     /**
-     * Update user location with coordinates and accuracy
+     * Update user location with coordinates and accuracy - REAL IMPLEMENTATION
      */
     public CompletableFuture<Boolean> updateLocation(String userId, double latitude, double longitude, double accuracy) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                Log.d(TAG, "🔄 Updating REAL location for user: " + userId);
+
                 // Verificăm dacă utilizatorul există
                 Optional<User> userOpt = userRepository.findById(userId).join();
 
                 if (!userOpt.isPresent()) {
-                    Log.w(TAG, "Cannot update location: User not found: " + userId);
+                    Log.w(TAG, "❌ Cannot update location: User not found: " + userId);
                     return false;
                 }
 
@@ -70,12 +80,20 @@ public class LocationApplicationService {
                 locationData.setHomeLatitude(latitude); // Implicit setăm aceeași locație ca home
                 locationData.setHomeLongitude(longitude);
 
+                // Save to local Room database
                 locationDataRepository.save(locationData).join();
-                Log.d(TAG, "Location updated for user " + userId);
 
+                // ✅ Send to REAL Kafka
+                kafkaProducer.sendLocationData(locationData, userId);
+
+                // ✅ Save to REAL PostgreSQL
+                postgreSQLDataService.insertLocationData(locationData);
+
+                Log.d(TAG, "✅ REAL location updated for user " + userId + " at " + latitude + ", " + longitude);
                 return true;
+
             } catch (Exception e) {
-                Log.e(TAG, "Error updating location for user " + userId, e);
+                Log.e(TAG, "❌ Error updating REAL location for user " + userId, e);
                 return false;
             }
         });
@@ -87,6 +105,8 @@ public class LocationApplicationService {
     public CompletableFuture<LocationDataDTO> updateUserLocation(String userId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                Log.d(TAG, "🔄 Simulating location update for MVP (using simulated GPS coordinates)");
+
                 // For MVP, we'll simulate a location update
                 // In real implementation, this would get GPS coordinates
                 double simulatedLat = 47.0722 + (Math.random() - 0.5) * 0.01; // Oradea area
@@ -105,7 +125,7 @@ public class LocationApplicationService {
                 return createDefaultLocationDTO(userId);
 
             } catch (Exception e) {
-                Log.e(TAG, "Error in updateUserLocation for user " + userId, e);
+                Log.e(TAG, "❌ Error in updateUserLocation for user " + userId, e);
                 return createDefaultLocationDTO(userId);
             }
         });
@@ -135,13 +155,14 @@ public class LocationApplicationService {
                 Optional<User> userOpt = userRepository.findById(userId).join();
 
                 if (!userOpt.isPresent()) {
-                    Log.w(TAG, "Cannot get location: User not found: " + userId);
+                    Log.w(TAG, "❌ Cannot get location: User not found: " + userId);
                     return Optional.empty();
                 }
 
                 return locationDataRepository.findByUserId(userId).join();
+
             } catch (Exception e) {
-                Log.e(TAG, "Error getting last location for user " + userId, e);
+                Log.e(TAG, "❌ Error getting last location for user " + userId, e);
                 return Optional.empty();
             }
         });
@@ -155,7 +176,7 @@ public class LocationApplicationService {
             try {
                 Optional<User> userOpt = userRepository.findById(userId).join();
                 if (!userOpt.isPresent()) {
-                    Log.w(TAG, "Cannot update home location: User not found: " + userId);
+                    Log.w(TAG, "❌ Cannot update home location: User not found: " + userId);
                     return false;
                 }
 
@@ -169,12 +190,20 @@ public class LocationApplicationService {
                     locationData = new LocationData(userOpt.get(), latitude, longitude);
                 }
 
+                // Save to local Room database
                 locationDataRepository.save(locationData).join();
-                Log.d(TAG, "Home location updated for user " + userId);
+
+                // ✅ Send to REAL Kafka
+                kafkaProducer.sendLocationData(locationData, userId);
+
+                // ✅ Save to REAL PostgreSQL
+                postgreSQLDataService.insertLocationData(locationData);
+
+                Log.d(TAG, "✅ REAL home location updated for user " + userId);
                 return true;
 
             } catch (Exception e) {
-                Log.e(TAG, "Error updating home location for user " + userId, e);
+                Log.e(TAG, "❌ Error updating REAL home location for user " + userId, e);
                 return false;
             }
         });

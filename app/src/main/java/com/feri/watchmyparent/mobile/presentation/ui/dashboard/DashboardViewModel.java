@@ -16,6 +16,7 @@ import com.feri.watchmyparent.mobile.domain.entities.SensorData;
 import com.feri.watchmyparent.mobile.domain.repositories.LocationDataRepository;
 import com.feri.watchmyparent.mobile.domain.repositories.SensorDataRepository;
 import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
+import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.services.WatchConnectionService;
 import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
 import com.feri.watchmyparent.mobile.presentation.ui.common.BaseViewModel;
@@ -39,10 +40,16 @@ public class DashboardViewModel extends BaseViewModel {
     private final HealthDataApplicationService healthDataService;
     private final LocationApplicationService locationService;
 
+    // ✅ Infrastructure pentru testare
+    private final PostgreSQLConfig postgreSQLConfig;
+    private final RealHealthDataKafkaProducer kafkaProducer;
+
     // ✅ DOAR DTO-uri pentru prezentare - respectă separation of concerns
     private final MutableLiveData<WatchConnectionStatusDTO> _connectionStatus = new MutableLiveData<>();
     private final MutableLiveData<LocationDataDTO> _locationStatus = new MutableLiveData<>();
     private final MutableLiveData<List<SensorDataDTO>> _latestSensorData = new MutableLiveData<>();
+    private final MutableLiveData<String> _kafkaStatus = new MutableLiveData<>();
+    private final MutableLiveData<String> _postgreSQLStatus = new MutableLiveData<>();
 
     private final String currentUserId = "demo-user-id";
 
@@ -50,22 +57,29 @@ public class DashboardViewModel extends BaseViewModel {
     public DashboardViewModel(
             WatchConnectionApplicationService watchConnectionService,
             HealthDataApplicationService healthDataService,
-            LocationApplicationService locationService) {
+            LocationApplicationService locationService,
+            PostgreSQLConfig postgreSQLConfig,
+            RealHealthDataKafkaProducer kafkaProducer) {
         this.watchConnectionService = watchConnectionService;
         this.healthDataService = healthDataService;
         this.locationService = locationService;
+        this.postgreSQLConfig = postgreSQLConfig;
+        this.kafkaProducer = kafkaProducer;
     }
 
     // ✅ Getters pentru DTO-uri - clean interface
     public LiveData<WatchConnectionStatusDTO> getConnectionStatus() { return _connectionStatus; }
     public LiveData<LocationDataDTO> getLocationStatus() { return _locationStatus; }
     public LiveData<List<SensorDataDTO>> getLatestSensorData() { return _latestSensorData; }
+    public LiveData<String> getKafkaStatus() { return _kafkaStatus; }
+    public LiveData<String> getPostgreSQLStatus() { return _postgreSQLStatus; }
 
     public void loadDashboardData() {
         setLoading(true);
         loadConnectionStatus();
         loadLocationStatus();
         loadLatestSensorData();
+        testInfrastructureStatus();
     }
 
     private void loadConnectionStatus() {
@@ -114,6 +128,35 @@ public class DashboardViewModel extends BaseViewModel {
                 });
     }
 
+    // ✅ Test infrastructure status
+    private void testInfrastructureStatus() {
+        // Test Kafka connection
+        CompletableFuture.runAsync(() -> {
+            try {
+                boolean kafkaConnected = kafkaProducer.isConnected();
+                String kafkaStatus = kafkaConnected
+                        ? "✅ Kafka: Connected (" + kafkaProducer.getClass().getSimpleName() + ")"
+                        : "❌ Kafka: Disconnected";
+                _kafkaStatus.postValue(kafkaStatus);
+            } catch (Exception e) {
+                _kafkaStatus.postValue("❌ Kafka: Error - " + e.getMessage());
+            }
+        });
+
+        // Test PostgreSQL connection
+        postgreSQLConfig.testConnection()
+                .thenAccept(connected -> {
+                    String pgStatus = connected
+                            ? "✅ PostgreSQL: Connected (" + postgreSQLConfig.getConnectionInfo() + ")"
+                            : "❌ PostgreSQL: Disconnected or offline";
+                    _postgreSQLStatus.postValue(pgStatus);
+                })
+                .exceptionally(throwable -> {
+                    _postgreSQLStatus.postValue("❌ PostgreSQL: Error - " + throwable.getMessage());
+                    return null;
+                });
+    }
+
     public void connectWatch() {
         setLoading(true);
         watchConnectionService.connectWatch()
@@ -122,16 +165,16 @@ public class DashboardViewModel extends BaseViewModel {
                     _connectionStatus.postValue(status);
                     if (status.isConnected()) {
                         post(() -> {
-                            setSuccess("Watch connected successfully");
+                            setSuccess("✅ Watch connected successfully (REAL Samsung Health SDK)");
                             startDataCollection();
                         });
                     } else {
-                        post(() -> setError("Failed to connect to watch"));
+                        post(() -> setError("❌ Failed to connect to watch"));
                     }
                 })
                 .exceptionally(throwable -> {
                     Log.e(TAG, "Error connecting watch", throwable);
-                    post(() -> setError("Error connecting to watch: " + throwable.getMessage()));
+                    post(() -> setError("❌ Error connecting to watch: " + throwable.getMessage()));
                     return null;
                 });
     }
@@ -143,14 +186,14 @@ public class DashboardViewModel extends BaseViewModel {
                     // ✅ FIXED: Use postValue for background thread
                     _connectionStatus.postValue(status);
                     if (!status.isConnected()) {
-                        post(() -> setSuccess("Watch disconnected successfully"));
+                        post(() -> setSuccess("🔌 Watch disconnected successfully"));
                     } else {
-                        post(() -> setError("Failed to disconnect watch"));
+                        post(() -> setError("❌ Failed to disconnect watch"));
                     }
                 })
                 .exceptionally(throwable -> {
                     Log.e(TAG, "Error disconnecting watch", throwable);
-                    post(() -> setError("Error disconnecting watch"));
+                    post(() -> setError("❌ Error disconnecting watch"));
                     return null;
                 });
     }
@@ -164,31 +207,97 @@ public class DashboardViewModel extends BaseViewModel {
         loadDashboardData();
     }
 
-    // ✅ Trigger manual data collection from watch
+    // ✅ Trigger manual data collection from watch - REAL DATA
     public void collectSensorData() {
         if (!isWatchConnected()) {
-            setError("Watch not connected. Please connect first.");
+            setError("❌ Watch not connected. Please connect first.");
             return;
         }
 
         setLoading(true);
         healthDataService.collectSensorData(currentUserId)
                 .thenAccept(sensorDataList -> {
-                    Log.d(TAG, "Collected " + sensorDataList.size() + " sensor readings");
+                    Log.d(TAG, "✅ Collected " + sensorDataList.size() + " REAL sensor readings");
                     // Refresh the display after collecting new data
                     loadLatestSensorData();
-                    post(() -> setSuccess("Sensor data collected successfully"));
+                    post(() -> setSuccess("📊 REAL sensor data collected successfully (" + sensorDataList.size() + " readings)"));
                 })
                 .exceptionally(throwable -> {
-                    Log.e(TAG, "Error collecting sensor data", throwable);
-                    post(() -> setError("Failed to collect sensor data"));
+                    Log.e(TAG, "❌ Error collecting REAL sensor data", throwable);
+                    post(() -> setError("❌ Failed to collect REAL sensor data"));
+                    return null;
+                });
+    }
+
+    // ✅ Test Kafka connection manually
+    public void testKafkaConnection() {
+        setLoading(true);
+        CompletableFuture.runAsync(() -> {
+            try {
+                Log.d(TAG, "🧪 Testing Kafka connection...");
+
+                // Perform health check
+                boolean connected = kafkaProducer.healthCheck().join();
+
+                String status = connected
+                        ? "✅ Kafka: Connection test PASSED"
+                        : "❌ Kafka: Connection test FAILED";
+
+                _kafkaStatus.postValue(status);
+
+                post(() -> {
+                    setLoading(false);
+                    if (connected) {
+                        setSuccess("✅ Kafka connection test successful");
+                    } else {
+                        setError("❌ Kafka connection test failed");
+                    }
+                });
+
+            } catch (Exception e) {
+                String status = "❌ Kafka: Test error - " + e.getMessage();
+                _kafkaStatus.postValue(status);
+                post(() -> {
+                    setLoading(false);
+                    setError("❌ Kafka test failed: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    // ✅ Test PostgreSQL connection manually
+    public void testPostgreSQLConnection() {
+        setLoading(true);
+        postgreSQLConfig.testConnection()
+                .thenAccept(connected -> {
+                    String status = connected
+                            ? "✅ PostgreSQL: Connection test PASSED"
+                            : "❌ PostgreSQL: Connection test FAILED";
+                    _postgreSQLStatus.postValue(status);
+
+                    post(() -> {
+                        setLoading(false);
+                        if (connected) {
+                            setSuccess("✅ PostgreSQL connection test successful");
+                        } else {
+                            setError("❌ PostgreSQL connection test failed");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    String status = "❌ PostgreSQL: Test error - " + throwable.getMessage();
+                    _postgreSQLStatus.postValue(status);
+                    post(() -> {
+                        setLoading(false);
+                        setError("❌ PostgreSQL test failed: " + throwable.getMessage());
+                    });
                     return null;
                 });
     }
 
     // ✅ Start automatic data collection (calls service layer)
     private void startDataCollection() {
-        Log.d(TAG, "Starting automatic data collection...");
+        Log.d(TAG, "🔄 Starting automatic REAL data collection...");
         // The actual periodic collection is handled by WatchDataCollectionService
         // This just ensures we have fresh data
         loadLatestSensorData();

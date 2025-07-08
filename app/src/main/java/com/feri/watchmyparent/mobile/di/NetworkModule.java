@@ -1,8 +1,11 @@
 package com.feri.watchmyparent.mobile.di;
 
+import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
 import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdapter;
+import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
+
 import android.content.Context;
 import dagger.Module;
 import dagger.Provides;
@@ -22,12 +25,12 @@ public class NetworkModule {
         return new HealthDataKafkaProducer();
     }
 
-//   asta e cel bun!!!!
-//    @Provides
-//    @Singleton
-//    public HealthDataKafkaProducer provideKafkaProducer() {
-//        return new HealthDataKafkaProducer();
-//    }
+    @Provides
+    @Singleton
+    public RealHealthDataKafkaProducer provideRealKafkaProducer() {
+        // Provide real Kafka producer for services that need it specifically
+        return new RealHealthDataKafkaProducer();
+    }
 
     @Provides
     @Singleton
@@ -39,5 +42,12 @@ public class NetworkModule {
     @Singleton
     public LocationServiceAdapter provideLocationServiceAdapter(@ApplicationContext Context context) {
         return new LocationServiceAdapter(context);
+    }
+
+    @Provides
+    @Singleton
+    public PostgreSQLConfig providePostgreSQLConfig() {
+        // ✅ REAL POSTGRESQL IMPLEMENTATION
+        return new PostgreSQLConfig();
     }
 }
