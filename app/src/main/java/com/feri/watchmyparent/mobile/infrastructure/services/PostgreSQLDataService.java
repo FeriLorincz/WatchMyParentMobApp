@@ -18,12 +18,16 @@ import java.util.concurrent.CompletableFuture;
 @Singleton
 public class PostgreSQLDataService {
 
+    private static final String TAG = "PostgreSQLDataService";
+    private final PostgreSQLConfig postgreSQLConfig;
+
     @Inject
-    public PostgreSQLDataService() {
+    public PostgreSQLDataService(PostgreSQLConfig postgreSQLConfig) {
+        this.postgreSQLConfig = postgreSQLConfig;
     }
 
     public CompletableFuture<Boolean> insertSensorData(SensorData sensorData) {
-        return PostgreSQLConfig.getConnection()
+        return postgreSQLConfig.getConnection()
                 .thenApply(connection -> {
                     try {
                         // FIXARE: Înlocuit text block cu string concatenare pentru Java 8
@@ -50,26 +54,26 @@ public class PostgreSQLDataService {
                         int rowsAffected = stmt.executeUpdate();
 
                         stmt.close();
-                        PostgreSQLConfig.closeConnection(connection);
+                        postgreSQLConfig.closeConnection(connection);
 
-                        Log.d("PostgreSQLDataService", "Sensor data inserted successfully: " + rowsAffected + " rows affected");
+                        Log.d(TAG, "Sensor data inserted successfully: " + rowsAffected + " rows affected");
                         return rowsAffected > 0;
 
                     } catch (SQLException e) {
-                        Log.e("PostgreSQLDataService", "Error inserting sensor data: " + e.getMessage());
+                        Log.e(TAG, "Error inserting sensor data: " + e.getMessage());
 
-                        PostgreSQLConfig.closeConnection(connection);
+                        postgreSQLConfig.closeConnection(connection);
                         return false;
                     }
                 })
                 .exceptionally(throwable -> {
-                    Log.e("PostgreSQLDataService", "Failed to insert sensor data: " + throwable.getMessage());
+                    Log.e(TAG, "Failed to insert sensor data: " + throwable.getMessage());
                     return false;
                 });
     }
 
     public CompletableFuture<Boolean> insertLocationData(LocationData locationData) {
-        return PostgreSQLConfig.getConnection()
+        return postgreSQLConfig.getConnection()
                 .thenApply(connection -> {
                     try {
                         // FIXARE: Înlocuit text block cu string concatenare pentru Java 8
@@ -100,19 +104,19 @@ public class PostgreSQLDataService {
                         int rowsAffected = stmt.executeUpdate();
 
                         stmt.close();
-                        PostgreSQLConfig.closeConnection(connection);
+                        postgreSQLConfig.closeConnection(connection);
 
-                        Log.d("PostgreSQLDataService", "Location data inserted successfully: " + rowsAffected + " rows affected");
+                        Log.d(TAG, "Location data inserted successfully: " + rowsAffected + " rows affected");
                         return rowsAffected > 0;
 
                     } catch (SQLException e) {
-                        Log.e("PostgreSQLDataService", "Error inserting location data: " + e.getMessage());
-                        PostgreSQLConfig.closeConnection(connection);
+                        Log.e(TAG, "Error inserting location data: " + e.getMessage());
+                        postgreSQLConfig.closeConnection(connection);
                         return false;
                     }
                 })
                 .exceptionally(throwable -> {
-                    Log.e("PostgreSQLDataService", "Failed to insert location data: " + throwable.getMessage());
+                    Log.e(TAG, "Failed to insert location data: " + throwable.getMessage());
                     return false;
                 });
     }
@@ -168,7 +172,7 @@ public class PostgreSQLDataService {
      * Inserează date de test pentru verificare
      */
     public CompletableFuture<Boolean> insertTestData() {
-        return PostgreSQLConfig.getConnection()
+        return postgreSQLConfig.getConnection()
                 .thenApply(connection -> {
                     try {
                         String sql = "INSERT INTO sensor_data (" +
@@ -187,14 +191,14 @@ public class PostgreSQLDataService {
                         int rowsAffected = stmt.executeUpdate();
 
                         stmt.close();
-                        PostgreSQLConfig.closeConnection(connection);
+                        postgreSQLConfig.closeConnection(connection);
 
-                        Log.d("PostgreSQLDataService", "Test data inserted successfully: " + rowsAffected + " rows affected");
+                        Log.d(TAG, "Test data inserted successfully: " + rowsAffected + " rows affected");
                         return rowsAffected > 0;
 
                     } catch (SQLException e) {
-                        Log.e("PostgreSQLDataService", "Error inserting test data: " + e.getMessage());
-                        PostgreSQLConfig.closeConnection(connection);
+                        Log.e(TAG, "Error inserting test data: " + e.getMessage());
+                        postgreSQLConfig.closeConnection(connection);
                         return false;
                     }
                 });

@@ -47,151 +47,54 @@ public class HealthDataApplicationService {
         this.kafkaProducer = kafkaProducer;
     }
 
+    // ✅ Collect sensor data - orchestrates the entire flow
     public CompletableFuture<List<SensorData>> collectSensorData(String userId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Găsim utilizatorul folosind Optional pentru a evita NoSuchElementException
                 Optional<User> userOptional = userRepository.findById(userId).join();
-
                 if (!userOptional.isPresent()) {
                     Log.w(TAG, "User not found: " + userId);
-                    return new ArrayList<>(); // Returnăm o listă goală în loc să aruncăm excepție
+                    return new ArrayList<>();
                 }
 
                 User user = userOptional.get();
 
-                // Obținem configurațiile senzorilor
-                List<SensorConfiguration> configurations =
-                        configurationRepository.findByUserId(userId).join();
-
+                // Get sensor configurations for this user
+                List<SensorConfiguration> configurations = configurationRepository.findByUserId(userId).join();
                 if (configurations.isEmpty()) {
                     Log.w(TAG, "No sensor configurations found for user: " + userId);
                     return new ArrayList<>();
                 }
 
-                // Aici ar trebui să colectăm date reale de la senzori
-                // Pentru moment, simulăm câteva date
-                List<SensorData> collectedData = simulateSensorData(user, configurations);
+                // Simulate sensor data collection (in real implementation, this would connect to watch)
+                List<SensorData> collectedData = simulateSensorDataCollection(user, configurations);
 
-                // Salvăm datele în repository
+                // Save and transmit each piece of data
                 for (SensorData data : collectedData) {
                     sensorDataRepository.save(data).join();
-
-                    // Trimitem date la Kafka
                     kafkaProducer.sendHealthData(data, userId);
                 }
 
+                Log.d(TAG, "Successfully collected " + collectedData.size() + " sensor readings for user " + userId);
                 return collectedData;
+
             } catch (Exception e) {
                 Log.e(TAG, "Error collecting sensor data for user " + userId, e);
-                return new ArrayList<>(); // Returnăm o listă goală în caz de eroare
+                return new ArrayList<>();
             }
         });
     }
 
-    private List<SensorData> simulateSensorData(User user, List<SensorConfiguration> configurations) {
-        List<SensorData> data = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
-
-        for (SensorConfiguration config : configurations) {
-            SensorData sensorData = new SensorData();
-            sensorData.setIdSensorData(java.util.UUID.randomUUID().toString());
-            sensorData.setUser(user);
-            sensorData.setSensorType(config.getSensorType());
-            sensorData.setTimestamp(now);
-            sensorData.setValue(Math.random() * 100); // Valoare aleatoare între 0-100
-            sensorData.setUnit(config.getUnitOfMeasure());
-
-            data.add(sensorData);
-        }
-
-        return data;
-    }
-}
-
-
-
-
-
-
-    /*
-
-    private final WatchManager watchManager;
-    private final SensorDataRepository sensorDataRepository;
-    private final SensorConfigurationRepository configurationRepository;
-    private final UserRepository userRepository;
-    private final HealthDataKafkaProducer kafkaProducer;
-    private final KafkaMessageFormatter messageFormatter;
-
-    @Inject
-    public HealthDataApplicationService(
-            WatchManager watchManager,
-            SensorDataRepository sensorDataRepository,
-            SensorConfigurationRepository configurationRepository,
-            UserRepository userRepository,
-            HealthDataKafkaProducer kafkaProducer,
-            KafkaMessageFormatter messageFormatter) {
-        this.watchManager = watchManager;
-        this.sensorDataRepository = sensorDataRepository;
-        this.configurationRepository = configurationRepository;
-        this.userRepository = userRepository;
-        this.kafkaProducer = kafkaProducer;
-        this.messageFormatter = messageFormatter;
-    }
-
+    // ✅ Overloaded method for specific sensor types
     public CompletableFuture<List<SensorDataDTO>> collectSensorData(String userId, List<SensorType> sensorTypes) {
-        return userRepository.findById(userId)
-                .thenCompose(userOpt -> {
-                    if (userOpt.isPresent()) {
-                        throw new RuntimeException("User not found: " + userId);
-                    }
-                    User user = userOpt.get();
-
-                    return watchManager.readSensorData(sensorTypes)
-                            .thenCompose(readings -> processSensorReadings(user, readings));
-                })
-                .exceptionally(throwable -> {
-                    Log.e("HealthDataApplicationService", "Error collecting sensor data for user " + userId + throwable.getMessage());
-                    return new ArrayList<>();
-                });
-    }
-
-    private CompletableFuture<List<SensorDataDTO>> processSensorReadings(User user, List<SensorReading> readings) {
-        List<CompletableFuture<SensorDataDTO>> futures = readings.stream()
-                .map(reading -> processSingleReading(user, reading))
-                .collect(Collectors.toList());
-
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenApply(ignored -> futures.stream()
-                        .map(CompletableFuture::join)
+        return collectSensorData(userId)
+                .thenApply(sensorDataList -> sensorDataList.stream()
+                        .filter(data -> sensorTypes.contains(data.getSensorType()))
+                        .map(this::convertToDTO)
                         .collect(Collectors.toList()));
     }
 
-    private CompletableFuture<SensorDataDTO> processSingleReading(User user, SensorReading reading) {
-        // Create sensor data entity
-        SensorData sensorData = new SensorData(
-                user,
-                reading.getSensorType(),
-                reading.getValue(),
-                watchManager.getDeviceId()
-        );
-
-        // Save to local database
-        return sensorDataRepository.save(sensorData)
-                .thenCompose(saved -> {
-                    // Transmit to Kafka
-                    String formattedMessage = messageFormatter.formatSensorData(saved);
-                    return kafkaProducer.sendHealthData(formattedMessage, user.getIdUser())
-                            .thenApply(transmitted -> {
-                                if (transmitted) {
-                                    saved.markAsTransmitted();
-                                    sensorDataRepository.save(saved); // Update transmission status
-                                }
-                                return convertToDTO(saved);
-                            });
-                });
-    }
-
+    // ✅ Get latest sensor data as DTOs
     public CompletableFuture<List<SensorDataDTO>> getLatestSensorData(String userId) {
         return sensorDataRepository.findLatestByUserId(userId)
                 .thenApply(sensorDataList -> sensorDataList.stream()
@@ -199,6 +102,7 @@ public class HealthDataApplicationService {
                         .collect(Collectors.toList()));
     }
 
+    // ✅ Get user sensor configurations as DTOs
     public CompletableFuture<List<SensorConfigurationDTO>> getUserSensorConfigurations(String userId) {
         return configurationRepository.findByUserId(userId)
                 .thenApply(configurations -> configurations.stream()
@@ -206,10 +110,11 @@ public class HealthDataApplicationService {
                         .collect(Collectors.toList()));
     }
 
+    // ✅ Update sensor configuration
     public CompletableFuture<SensorConfigurationDTO> updateSensorConfiguration(String userId, SensorConfigurationDTO configDTO) {
         return userRepository.findById(userId)
                 .thenCompose(userOpt -> {
-                    if (userOpt.isPresent()) {
+                    if (!userOpt.isPresent()) {
                         throw new RuntimeException("User not found: " + userId);
                     }
                     User user = userOpt.get();
@@ -232,6 +137,7 @@ public class HealthDataApplicationService {
                 });
     }
 
+    // ✅ Retry failed transmissions
     public CompletableFuture<Boolean> retryFailedTransmissions(String userId) {
         return sensorDataRepository.findPendingTransmissions()
                 .thenCompose(pendingData -> {
@@ -247,9 +153,55 @@ public class HealthDataApplicationService {
                 });
     }
 
+    // ✅ Private helper methods
+    private List<SensorData> simulateSensorDataCollection(User user, List<SensorConfiguration> configurations) {
+        List<SensorData> data = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (SensorConfiguration config : configurations) {
+            if (config.isEnabled()) {
+                SensorData sensorData = new SensorData();
+                sensorData.setIdSensorData(java.util.UUID.randomUUID().toString());
+                sensorData.setUser(user);
+                sensorData.setSensorType(config.getSensorType());
+                sensorData.setTimestamp(now);
+                sensorData.setUnit(config.getSensorType().getUnit());
+                sensorData.setDeviceId("samsung_galaxy_watch_7");
+
+                // Generate realistic mock values based on sensor type
+                sensorData.setValue(generateMockValue(config.getSensorType()));
+                data.add(sensorData);
+            }
+        }
+
+        return data;
+    }
+
+    private double generateMockValue(SensorType sensorType) {
+        switch (sensorType) {
+            case HEART_RATE:
+                return 60 + Math.random() * 40; // 60-100 bpm
+            case BLOOD_OXYGEN:
+                return 95 + Math.random() * 5; // 95-100%
+            case BLOOD_PRESSURE:
+                return 120 + Math.random() * 40; // 120-160 mmHg
+            case BODY_TEMPERATURE:
+                return 36.0 + Math.random() * 2; // 36-38°C
+            case STEP_COUNT:
+                return Math.random() * 1000; // 0-1000 steps
+            case STRESS:
+                return Math.random() * 100; // 0-100 stress score
+            case SLEEP:
+                return 6.0 + Math.random() * 4; // 6-10 hours
+            case FALL_DETECTION:
+                return Math.random() > 0.98 ? 1.0 : 0.0; // 2% chance of fall
+            default:
+                return Math.random() * 100;
+        }
+    }
+
     private CompletableFuture<Boolean> retryTransmission(SensorData sensorData) {
-        String formattedMessage = messageFormatter.formatSensorData(sensorData);
-        return kafkaProducer.sendHealthData(formattedMessage, sensorData.getUser().getIdUser())
+        return kafkaProducer.sendHealthData(sensorData, sensorData.getUser().getIdUser())
                 .thenCompose(transmitted -> {
                     if (transmitted) {
                         sensorData.markAsTransmitted();
@@ -260,6 +212,7 @@ public class HealthDataApplicationService {
                 });
     }
 
+    // ✅ DTO conversion methods
     private SensorDataDTO convertToDTO(SensorData sensorData) {
         SensorDataDTO dto = new SensorDataDTO(
                 sensorData.getUser().getIdUser(),
@@ -269,6 +222,7 @@ public class HealthDataApplicationService {
         );
         dto.setTimestamp(sensorData.getTimestamp());
         dto.setTransmitted(sensorData.isTransmitted());
+        dto.setUnit(sensorData.getUnit());
         return dto;
     }
 
@@ -282,5 +236,3 @@ public class HealthDataApplicationService {
         return dto;
     }
 }
-
-     */

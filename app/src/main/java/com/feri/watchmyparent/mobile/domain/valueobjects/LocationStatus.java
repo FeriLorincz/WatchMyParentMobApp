@@ -1,5 +1,6 @@
 package com.feri.watchmyparent.mobile.domain.valueobjects;
 
+import androidx.room.Ignore;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -11,8 +12,11 @@ public class LocationStatus {
     private String address;
     private LocalDateTime timestamp;
 
+    // Default constructor
     public LocationStatus() {}
 
+    // Custom constructor - marked with @Ignore so Room won't use it
+    @Ignore
     public LocationStatus(String status, double latitude, double longitude, String address) {
         this.status = status;
         this.latitude = latitude;

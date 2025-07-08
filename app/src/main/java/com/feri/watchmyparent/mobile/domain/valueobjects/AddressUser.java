@@ -1,5 +1,6 @@
 package com.feri.watchmyparent.mobile.domain.valueobjects;
 
+import androidx.room.Ignore;
 import java.util.Objects;
 
 public class AddressUser {
@@ -18,9 +19,11 @@ public class AddressUser {
     private String countryUser;
     private String nearestAmbulanceCityUser;
 
-    // Constructors
+    // Default Constructors
     public AddressUser() {}
 
+    // Custom constructor - marked with @Ignore so Room won't use it
+    @Ignore
     public AddressUser(String cityUser, String streetUser, String numberUser, String countryUser) {
         this.cityUser = cityUser;
         this.streetUser = streetUser;

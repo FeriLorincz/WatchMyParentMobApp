@@ -37,6 +37,9 @@ public class LocationApplicationService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Update user location with coordinates and accuracy
+     */
     public CompletableFuture<Boolean> updateLocation(String userId, double latitude, double longitude, double accuracy) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -61,6 +64,7 @@ public class LocationApplicationService {
                 locationStatus.setLatitude(latitude);
                 locationStatus.setLongitude(longitude);
                 locationStatus.setTimestamp(LocalDateTime.now());
+                locationStatus.setAddress("Address from coordinates: " + latitude + ", " + longitude);
 
                 locationData.setLocationStatus(locationStatus);
                 locationData.setHomeLatitude(latitude); // Implicit setăm aceeași locație ca home
@@ -77,6 +81,53 @@ public class LocationApplicationService {
         });
     }
 
+    /**
+     * Update user location - simplified method for backward compatibility
+     */
+    public CompletableFuture<LocationDataDTO> updateUserLocation(String userId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // For MVP, we'll simulate a location update
+                // In real implementation, this would get GPS coordinates
+                double simulatedLat = 47.0722 + (Math.random() - 0.5) * 0.01; // Oradea area
+                double simulatedLng = 21.9211 + (Math.random() - 0.5) * 0.01;
+
+                boolean updated = updateLocation(userId, simulatedLat, simulatedLng, 10.0).join();
+
+                if (updated) {
+                    Optional<LocationData> locationOpt = getLastLocation(userId).join();
+                    if (locationOpt.isPresent()) {
+                        return convertToDTO(locationOpt.get());
+                    }
+                }
+
+                // Return default DTO if update failed
+                return createDefaultLocationDTO(userId);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error in updateUserLocation for user " + userId, e);
+                return createDefaultLocationDTO(userId);
+            }
+        });
+    }
+
+    /**
+     * Get current user location as DTO
+     */
+    public CompletableFuture<LocationDataDTO> getCurrentUserLocation(String userId) {
+        return getLastLocation(userId)
+                .thenApply(locationOpt -> {
+                    if (locationOpt.isPresent()) {
+                        return convertToDTO(locationOpt.get());
+                    } else {
+                        return createDefaultLocationDTO(userId);
+                    }
+                });
+    }
+
+    /**
+     * Get last location for user
+     */
     public CompletableFuture<Optional<LocationData>> getLastLocation(String userId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -95,163 +146,72 @@ public class LocationApplicationService {
             }
         });
     }
-}
 
-
-
-/*
-
-    private final LocationServiceAdapter locationService;
-    private final LocationDataRepository locationRepository;
-    private final UserRepository userRepository;
-    private final HealthDataKafkaProducer kafkaProducer;
-    private final KafkaMessageFormatter messageFormatter;
-
-    @Inject
-    public LocationApplicationService(
-            LocationServiceAdapter locationService,
-            LocationDataRepository locationRepository,
-            UserRepository userRepository,
-            HealthDataKafkaProducer kafkaProducer,
-            KafkaMessageFormatter messageFormatter) {
-        this.locationService = locationService;
-        this.locationRepository = locationRepository;
-        this.userRepository = userRepository;
-        this.kafkaProducer = kafkaProducer;
-        this.messageFormatter = messageFormatter;
-    }
-
-    public CompletableFuture<LocationDataDTO> updateUserLocation(String userId) {
-        return userRepository.findById(userId)
-                .thenCompose(userOpt -> {
-                    if (userOpt.isPresent()) {
-                        throw new RuntimeException("User not found: " + userId);
-                    }
-                    User user = userOpt.get();
-
-                    return locationService.getCurrentLocation()
-                            .thenCompose(currentLocation -> processLocationUpdate(user, currentLocation));
-                })
-                .exceptionally(throwable -> {
-                    //Timber.e(throwable, "Error updating location for user %s", userId);
-                    Log.e("LocationApplicationService", "Error updating location for user " + userId + throwable.getMessage());
-                    return null;
-                });
-    }
-
-    private CompletableFuture<LocationDataDTO> processLocationUpdate(User user, LocationStatus currentLocation) {
-        return locationRepository.findByUserId(user.getIdUser())
-                .thenCompose(existingLocationOpt -> {
-                    LocationData locationData;
-
-                    if (existingLocationOpt.isPresent()) {
-                        locationData = existingLocationOpt.get();
-                    } else {
-                        // Create new location data with home coordinates from user address
-                        double[] homeCoordinates = getHomeCoordinatesFromAddress(user.getAddressUser());
-                        locationData = new LocationData(user, homeCoordinates[0], homeCoordinates[1]);
-                    }
-
-                    // Update location with HOME/AWAY logic
-                    locationData.updateLocation(
-                            currentLocation.getLatitude(),
-                            currentLocation.getLongitude(),
-                            currentLocation.getAddress()
-                    );
-
-                    return saveAndTransmitLocation(locationData);
-                });
-    }
-
-    private CompletableFuture<LocationDataDTO> saveAndTransmitLocation(LocationData locationData) {
-        return locationRepository.save(locationData)
-                .thenCompose(saved -> {
-                    // Transmit to Kafka
-                    String formattedMessage = messageFormatter.formatLocationData(saved);
-                    return kafkaProducer.sendHealthData(formattedMessage, saved.getUser().getIdUser())
-                            .thenApply(transmitted -> {
-                                LocationDataDTO dto = convertToDTO(saved);
-                                Log.d("LocationApplicationService", "Location updated for user " + saved.getUser().getIdUser() + ": " + (saved.isAtHome() ? "HOME" : "AWAY"));
-                                return dto;
-                            });
-                });
-    }
-
-    public CompletableFuture<LocationDataDTO> getCurrentUserLocation(String userId) {
-        return locationRepository.findByUserId(userId)
-                .thenApply(locationOpt -> locationOpt.map(this::convertToDTO).orElse(null));
-    }
-
+    /**
+     * Update home location for user
+     */
     public CompletableFuture<Boolean> updateHomeLocation(String userId, double latitude, double longitude) {
-        return userRepository.findById(userId)
-                .thenCompose(userOpt -> {
-                    if (userOpt.isPresent()) {
-                        throw new RuntimeException("User not found: " + userId);
-                    }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Optional<User> userOpt = userRepository.findById(userId).join();
+                if (!userOpt.isPresent()) {
+                    Log.w(TAG, "Cannot update home location: User not found: " + userId);
+                    return false;
+                }
 
-                    return locationRepository.findByUserId(userId)
-                            .thenCompose(locationOpt -> {
-                                LocationData locationData;
-                                if (locationOpt.isPresent()) {
-                                    locationData = locationOpt.get();
-                                    locationData.updateHomeLocation(latitude, longitude);
-                                } else {
-                                    locationData = new LocationData(userOpt.get(), latitude, longitude);
-                                }
+                Optional<LocationData> locationOpt = locationDataRepository.findByUserId(userId).join();
+                LocationData locationData;
 
-                                return locationRepository.save(locationData)
-                                        .thenApply(saved -> true);
-                            });
-                });
-    }
+                if (locationOpt.isPresent()) {
+                    locationData = locationOpt.get();
+                    locationData.updateHomeLocation(latitude, longitude);
+                } else {
+                    locationData = new LocationData(userOpt.get(), latitude, longitude);
+                }
 
-    public void startLocationTracking(String userId, LocationServiceAdapter.LocationUpdateCallback callback) {
-        locationService.startLocationUpdates(new LocationServiceAdapter.LocationUpdateCallback() {
-            @Override
-            public void onLocationUpdate(LocationStatus locationStatus) {
-                updateUserLocation(userId)
-                        .thenAccept(dto -> {
-                            if (dto != null) {
-                                callback.onLocationUpdate(locationStatus);
-                            }
-                        });
-            }
+                locationDataRepository.save(locationData).join();
+                Log.d(TAG, "Home location updated for user " + userId);
+                return true;
 
-            @Override
-            public void onError(Exception error) {
-                Log.e("LocationApplicationService", "Location tracking error for user " + userId, error);
-                callback.onError(error);
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating home location for user " + userId, e);
+                return false;
             }
         });
     }
 
-    public void stopLocationTracking() {
-        locationService.stopLocationUpdates();
-    }
+    // ✅ Helper methods for DTO conversion
+    private LocationDataDTO convertToDTO(LocationData locationData) {
+        LocationDataDTO dto = new LocationDataDTO();
+        dto.setUserId(locationData.getUser().getIdUser());
 
-    private double[] getHomeCoordinatesFromAddress(AddressUser address) {
-        // In a real implementation, you would geocode the address
-        // For MVP, return default coordinates (Oradea, Romania as specified)
-        if (address == null) {
-            return new double[]{47.0722, 21.9211}; // Oradea coordinates
+        if (locationData.getLocationStatus() != null) {
+            dto.setStatus(locationData.getLocationStatus().getStatus());
+            dto.setLatitude(locationData.getLocationStatus().getLatitude());
+            dto.setLongitude(locationData.getLocationStatus().getLongitude());
+            dto.setAddress(locationData.getLocationStatus().getAddress());
+            dto.setTimestamp(locationData.getLocationStatus().getTimestamp());
+        } else {
+            dto.setStatus("UNKNOWN");
+            dto.setLatitude(0.0);
+            dto.setLongitude(0.0);
+            dto.setAddress("No location available");
+            dto.setTimestamp(LocalDateTime.now());
         }
 
-        // TODO: Implement address geocoding
-        return new double[]{47.0722, 21.9211}; // Default to Oradea
-    }
-
-    private LocationDataDTO convertToDTO(LocationData locationData) {
-        LocationStatus status = locationData.getLocationStatus();
-        LocationDataDTO dto = new LocationDataDTO(
-                locationData.getUser().getIdUser(),
-                status.getStatus(),
-                status.getLatitude(),
-                status.getLongitude(),
-                status.getAddress()
-        );
-        dto.setTimestamp(status.getTimestamp());
         dto.setAtHome(locationData.isAtHome());
         return dto;
     }
+
+    private LocationDataDTO createDefaultLocationDTO(String userId) {
+        LocationDataDTO dto = new LocationDataDTO();
+        dto.setUserId(userId);
+        dto.setStatus("UNKNOWN");
+        dto.setLatitude(0.0);
+        dto.setLongitude(0.0);
+        dto.setAddress("No location data available");
+        dto.setTimestamp(LocalDateTime.now());
+        dto.setAtHome(false);
+        return dto;
+    }
 }
-*/
