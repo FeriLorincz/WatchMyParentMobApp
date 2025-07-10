@@ -7,6 +7,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import androidx.annotation.Nullable;
+
+import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
 import com.feri.watchmyparent.mobile.application.services.HealthDataApplicationService;
 import com.feri.watchmyparent.mobile.application.services.WatchConnectionApplicationService;
 import com.feri.watchmyparent.mobile.application.services.LocationApplicationService;
@@ -215,8 +217,8 @@ public class WatchDataCollectionService extends Service {
                 .thenAccept(data -> {
                     Log.d(TAG, "✅ Successfully collected " + data.size() + " REAL sensor readings");
 
-                    // Log individual sensor readings
-                    for (var sensorData : data) {
+                    // ✅ FIXED: Replace 'var' with explicit type 'SensorDataDTO' for Java 8
+                    for (SensorDataDTO sensorData : data) {
                         Log.d(TAG, "📊 REAL DATA: " + sensorData.getSensorType() + " = " +
                                 sensorData.getValue() + " " + sensorData.getUnit() +
                                 " (transmitted: " + sensorData.isTransmitted() + ")");

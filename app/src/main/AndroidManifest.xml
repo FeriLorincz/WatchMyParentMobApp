@@ -33,13 +33,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Wake Lock -->
+    <!-- System Permissions -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-    <!-- Notification Permission (for Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Foreground Service Permission -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
@@ -67,12 +63,7 @@
         android:theme="@style/Theme.WatchMyParentMobApp"
         tools:targetApi="31">
 
-        <!-- Samsung Health Permission Activity -->
-        <activity
-            android:name="com.samsung.android.sdk.healthdata.HealthPermissionActivity"
-            android:exported="false" />
-
-        <!-- Health Connect Intent Filter - de sters acest activity-alias-->
+        <!-- Health Connect Intent Filter -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -129,17 +120,6 @@
             android:exported="false"
             android:foregroundServiceType="health" />
 
-        <!-- Samsung Health Data Service -->
-        <service
-            android:name="com.samsung.android.sdk.healthdata.HealthDataService"
-            android:enabled="true"
-            android:exported="false" />
-
-        <!-- Samsung Health Provider -->
-        <provider
-            android:name="com.samsung.android.sdk.healthdata.HealthDataProvider"
-            android:authorities="${applicationId}.healthdata"
-            android:exported="false" />
 
         <!--        &lt;!&ndash; Auth Activities &ndash;&gt;-->
 <!--        <activity-->
