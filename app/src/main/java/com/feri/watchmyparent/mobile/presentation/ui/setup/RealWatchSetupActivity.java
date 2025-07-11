@@ -8,27 +8,22 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.feri.watchmyparent.mobile.R;
 import com.feri.watchmyparent.mobile.infrastructure.utils.SamsungWatchPermissions;
 import com.feri.watchmyparent.mobile.infrastructure.utils.SamsungWatchSetupChecker;
-import com.feri.watchmyparent.mobile.infrastructure.watch.RealSamsungHealthManager;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManagerFactory;
 import com.feri.watchmyparent.mobile.presentation.ui.common.BaseActivity;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import dagger.hilt.android.AndroidEntryPoint;
 
 /**
- * ✅ REAL Setup Activity pentru Samsung Galaxy Watch 7
- * Ghidează utilizatorul prin procesul complet de configurare
+ * ✅ SIMPLIFIED Setup Activity pentru Samsung Galaxy Watch 7
+ * Versiune simplificată pentru a evita problemele de build
  */
 @AndroidEntryPoint
 public class RealWatchSetupActivity extends BaseActivity {
@@ -38,17 +33,11 @@ public class RealWatchSetupActivity extends BaseActivity {
     // UI Components
     private TextView statusSummaryText;
     private TextView implementationInfoText;
-    private RecyclerView setupStatusRecyclerView;
-    private RecyclerView permissionStatusRecyclerView;
     private Button checkSetupButton;
     private Button requestPermissionsButton;
     private Button connectWatchButton;
     private Button testDataButton;
     private ProgressBar progressBar;
-
-    // Adapters
-    private SetupStatusAdapter setupStatusAdapter;
-    private PermissionStatusAdapter permissionStatusAdapter;
 
     // State
     private SamsungWatchSetupChecker.WatchSetupStatus setupStatus;
@@ -62,7 +51,6 @@ public class RealWatchSetupActivity extends BaseActivity {
 
         setupToolbar((Toolbar) findViewById(R.id.toolbar), "Samsung Galaxy Watch 7 Setup", true);
         initializeViews();
-        setupRecyclerViews();
         setupClickListeners();
 
         // Start initial setup check
@@ -72,25 +60,11 @@ public class RealWatchSetupActivity extends BaseActivity {
     private void initializeViews() {
         statusSummaryText = findViewById(R.id.tv_status_summary);
         implementationInfoText = findViewById(R.id.tv_implementation_info);
-        setupStatusRecyclerView = findViewById(R.id.rv_setup_status);
-        permissionStatusRecyclerView = findViewById(R.id.rv_permission_status);
         checkSetupButton = findViewById(R.id.btn_check_setup);
         requestPermissionsButton = findViewById(R.id.btn_request_permissions);
         connectWatchButton = findViewById(R.id.btn_connect_watch);
         testDataButton = findViewById(R.id.btn_test_data);
         progressBar = findViewById(R.id.progress_bar);
-    }
-
-    private void setupRecyclerViews() {
-        // Setup status list
-        setupStatusAdapter = new SetupStatusAdapter();
-        setupStatusRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        setupStatusRecyclerView.setAdapter(setupStatusAdapter);
-
-        // Permission status list
-        permissionStatusAdapter = new PermissionStatusAdapter();
-        permissionStatusRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        permissionStatusRecyclerView.setAdapter(permissionStatusAdapter);
     }
 
     private void setupClickListeners() {
@@ -116,7 +90,9 @@ public class RealWatchSetupActivity extends BaseActivity {
                 .exceptionally(throwable -> {
                     runOnUiThread(() -> {
                         showLoading(false);
-                        showError("Failed to check setup: " + throwable.getMessage());
+                        statusSummaryText.setText("❌ Setup check failed");
+                        statusSummaryText.setTextColor(getColor(R.color.disconnected_red));
+                        showError("Failed to check Samsung Galaxy Watch 7 setup");
                     });
                     return null;
                 });
@@ -142,37 +118,50 @@ public class RealWatchSetupActivity extends BaseActivity {
     }
 
     private void updateSetupStatusUI(SamsungWatchSetupChecker.WatchSetupStatus status) {
-        // Update setup status list
-        List<SetupStatusItem> setupItems = new ArrayList<>();
+        StringBuilder statusText = new StringBuilder();
 
+        if (status.isFullyReady) {
+            statusText.append("✅ Samsung Galaxy Watch 7 setup complete\n\n");
+            statusSummaryText.setTextColor(getColor(R.color.connected_green));
+        } else {
+            statusText.append("⚠️ Setup incomplete:\n");
+            statusText.append("• Missing: ").append(status.missingComponents.size()).append(" components\n");
+            statusText.append("• Actions needed: ").append(status.requiredActions.size()).append("\n\n");
+            statusSummaryText.setTextColor(getColor(R.color.away_orange));
+        }
+
+        // Add ready components
+        statusText.append("Ready components:\n");
         for (String ready : status.readyComponents) {
-            setupItems.add(new SetupStatusItem(ready, true, null));
+            statusText.append("• ").append(ready).append("\n");
         }
 
-        for (String missing : status.missingComponents) {
-            setupItems.add(new SetupStatusItem(missing, false, "Required for full functionality"));
+        if (!status.missingComponents.isEmpty()) {
+            statusText.append("\nMissing components:\n");
+            for (String missing : status.missingComponents) {
+                statusText.append("• ").append(missing).append("\n");
+            }
         }
 
-        for (String action : status.requiredActions) {
-            setupItems.add(new SetupStatusItem("⚠️ " + action, false, "Action needed"));
-        }
-
-        setupStatusAdapter.updateItems(setupItems);
+        statusSummaryText.setText(statusText.toString());
     }
 
     private void updatePermissionStatusUI(SamsungWatchPermissions.PermissionStatus status) {
-        // Update permission status list
-        List<PermissionStatusItem> permissionItems = new ArrayList<>();
+        // Update status summary with permission info
+        String currentText = statusSummaryText.getText().toString();
+        StringBuilder permissionText = new StringBuilder(currentText);
 
-        for (String granted : status.grantedPermissions) {
-            permissionItems.add(new PermissionStatusItem("✅ " + granted, true));
+        permissionText.append("\n\nPermissions:\n");
+        if (status.allGranted) {
+            permissionText.append("✅ All permissions granted (").append(status.grantedPermissions.size()).append(")\n");
+        } else {
+            permissionText.append("❌ Missing permissions: ").append(status.deniedPermissions.size()).append("\n");
+            for (String denied : status.deniedPermissions) {
+                permissionText.append("• ").append(denied).append("\n");
+            }
         }
 
-        for (String denied : status.deniedPermissions) {
-            permissionItems.add(new PermissionStatusItem("❌ " + denied, false));
-        }
-
-        permissionStatusAdapter.updateItems(permissionItems);
+        statusSummaryText.setText(permissionText.toString());
     }
 
     private void updateOverallStatus() {
@@ -181,23 +170,17 @@ public class RealWatchSetupActivity extends BaseActivity {
         boolean fullyReady = setupReady && permissionsReady;
 
         if (fullyReady) {
-            statusSummaryText.setText("🎉 Samsung Galaxy Watch 7 is ready for REAL data collection!");
-            statusSummaryText.setTextColor(getColor(R.color.connected_green));
             connectWatchButton.setEnabled(true);
             requestPermissionsButton.setEnabled(false);
+            requestPermissionsButton.setText("✅ Permissions Granted");
         } else if (permissionsReady && !setupReady) {
-            statusSummaryText.setText("⚠️ Permissions OK, but some setup components missing");
-            statusSummaryText.setTextColor(getColor(R.color.away_orange));
             connectWatchButton.setEnabled(true); // Can still try to connect
             requestPermissionsButton.setEnabled(false);
+            requestPermissionsButton.setText("✅ Permissions Granted");
         } else if (!permissionsReady) {
-            statusSummaryText.setText("❌ Permissions required for Samsung Galaxy Watch 7");
-            statusSummaryText.setTextColor(getColor(R.color.disconnected_red));
             connectWatchButton.setEnabled(false);
             requestPermissionsButton.setEnabled(true);
-        } else {
-            statusSummaryText.setText("🔄 Checking Samsung Galaxy Watch 7 status...");
-            statusSummaryText.setTextColor(getColor(R.color.away_orange));
+            requestPermissionsButton.setText("Grant Required Permissions");
         }
 
         // Update implementation info
@@ -247,6 +230,7 @@ public class RealWatchSetupActivity extends BaseActivity {
                                 // Update implementation info
                                 String implInfo = WatchManagerFactory.getImplementationInfo(watchManager);
                                 implementationInfoText.setText("Connected: " + implInfo);
+                                implementationInfoText.setVisibility(View.VISIBLE);
                             } else {
                                 statusSummaryText.setText("❌ Failed to connect to Samsung Galaxy Watch 7");
                                 statusSummaryText.setTextColor(getColor(R.color.disconnected_red));
@@ -283,9 +267,7 @@ public class RealWatchSetupActivity extends BaseActivity {
         watchManager.getSupportedSensors()
                 .thenCompose(sensors -> {
                     // Read data from first 5 sensors
-                    List<com.feri.watchmyparent.mobile.domain.enums.SensorType> testSensors =
-                            sensors.subList(0, Math.min(5, sensors.size()));
-                    return watchManager.readSensorData(testSensors);
+                    return watchManager.readSensorData(sensors.subList(0, Math.min(5, sensors.size())));
                 })
                 .thenAccept(readings -> {
                     runOnUiThread(() -> {
@@ -314,7 +296,7 @@ public class RealWatchSetupActivity extends BaseActivity {
                 });
     }
 
-    private void showSensorReadingsDialog(List<com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading> readings) {
+    private void showSensorReadingsDialog(java.util.List<com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading> readings) {
         StringBuilder message = new StringBuilder("REAL Samsung Galaxy Watch 7 data:\n\n");
 
         for (com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading reading : readings) {
@@ -332,7 +314,7 @@ public class RealWatchSetupActivity extends BaseActivity {
     }
 
     @Override
-    protected void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         boolean granted = SamsungWatchPermissions.handlePermissionResult(requestCode, permissions, grantResults);
@@ -356,16 +338,26 @@ public class RealWatchSetupActivity extends BaseActivity {
 
     @Override
     protected void showLoading(boolean show) {
-        progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (progressBar != null) {
+            progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
 
         // Disable buttons during loading
-        checkSetupButton.setEnabled(!show);
-        requestPermissionsButton.setEnabled(!show &&
-                (permissionStatus == null || !permissionStatus.allGranted));
-        connectWatchButton.setEnabled(!show &&
-                (permissionStatus != null && permissionStatus.allGranted));
-        testDataButton.setEnabled(!show &&
-                (watchManager != null && watchManager.isConnected()));
+        if (checkSetupButton != null) {
+            checkSetupButton.setEnabled(!show);
+        }
+        if (requestPermissionsButton != null) {
+            requestPermissionsButton.setEnabled(!show &&
+                    (permissionStatus == null || !permissionStatus.allGranted));
+        }
+        if (connectWatchButton != null) {
+            connectWatchButton.setEnabled(!show &&
+                    (permissionStatus != null && permissionStatus.allGranted));
+        }
+        if (testDataButton != null) {
+            testDataButton.setEnabled(!show &&
+                    (watchManager != null && watchManager.isConnected()));
+        }
     }
 
     @Override
@@ -385,80 +377,6 @@ public class RealWatchSetupActivity extends BaseActivity {
         // Cleanup watch manager
         if (watchManager != null && watchManager.isConnected()) {
             watchManager.disconnect();
-        }
-    }
-
-    // Data classes for adapters
-    public static class SetupStatusItem {
-        public final String title;
-        public final boolean isReady;
-        public final String subtitle;
-
-        public SetupStatusItem(String title, boolean isReady, String subtitle) {
-            this.title = title;
-            this.isReady = isReady;
-            this.subtitle = subtitle;
-        }
-    }
-
-    public static class PermissionStatusItem {
-        public final String title;
-        public final boolean isGranted;
-
-        public PermissionStatusItem(String title, boolean isGranted) {
-            this.title = title;
-            this.isGranted = isGranted;
-        }
-    }
-
-    // Placeholder adapters (would need full implementation)
-    private static class SetupStatusAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-        private List<SetupStatusItem> items = new ArrayList<>();
-
-        void updateItems(List<SetupStatusItem> items) {
-            this.items = items;
-            notifyDataSetChanged();
-        }
-
-        @Override
-        public RecyclerView.ViewHolder onCreateViewHolder(android.view.ViewGroup parent, int viewType) {
-            // Implementation needed
-            return null;
-        }
-
-        @Override
-        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-            // Implementation needed
-        }
-
-        @Override
-        public int getItemCount() {
-            return items.size();
-        }
-    }
-
-    private static class PermissionStatusAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-        private List<PermissionStatusItem> items = new ArrayList<>();
-
-        void updateItems(List<PermissionStatusItem> items) {
-            this.items = items;
-            notifyDataSetChanged();
-        }
-
-        @Override
-        public RecyclerView.ViewHolder onCreateViewHolder(android.view.ViewGroup parent, int viewType) {
-            // Implementation needed
-            return null;
-        }
-
-        @Override
-        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-            // Implementation needed
-        }
-
-        @Override
-        public int getItemCount() {
-            return items.size();
         }
     }
 }

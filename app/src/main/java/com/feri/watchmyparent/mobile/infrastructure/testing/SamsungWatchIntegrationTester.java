@@ -11,7 +11,6 @@ import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaPro
 import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
 import com.feri.watchmyparent.mobile.infrastructure.utils.SamsungWatchPermissions;
 import com.feri.watchmyparent.mobile.infrastructure.utils.SamsungWatchSetupChecker;
-import com.feri.watchmyparent.mobile.infrastructure.watch.RealSamsungHealthManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,8 +20,8 @@ import java.util.concurrent.CompletableFuture;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-//✅ COMPLETE Integration Tester pentru Samsung Galaxy Watch 7
- // Testează întregul flux: ceas → aplicație → Kafka → PostgreSQL
+// Integration Tester pentru Samsung Galaxy Watch 7
+// Testează întregul flux: ceas → aplicație → Kafka → PostgreSQL
 
 @Singleton
 public class SamsungWatchIntegrationTester {

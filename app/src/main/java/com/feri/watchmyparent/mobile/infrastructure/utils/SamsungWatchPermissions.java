@@ -23,10 +23,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * ✅ REAL Permissions Manager pentru Samsung Galaxy Watch 7
- * Gestionează toate permisiunile necesare pentru conectarea reală la ceas
- */
+//✅ REAL Permissions Manager pentru Samsung Galaxy Watch 7
+// Gestionează toate permisiunile necesare pentru conectarea reală la ceas
+
 public class SamsungWatchPermissions {
 
     private static final String TAG = "SamsungWatchPermissions";
@@ -61,18 +60,6 @@ public class SamsungWatchPermissions {
             Manifest.permission.BLUETOOTH,
             Manifest.permission.BLUETOOTH_ADMIN
     };
-
-    // Health Connect permissions for Samsung Galaxy Watch 7 data
-    private static final Set<String> HEALTH_CONNECT_PERMISSIONS = Set.of(
-            HealthPermission.getReadPermission(HeartRateRecord.class),
-            HealthPermission.getReadPermission(StepsRecord.class),
-            HealthPermission.getReadPermission(SleepSessionRecord.class),
-            HealthPermission.getReadPermission(DistanceRecord.class),
-            HealthPermission.getReadPermission(TotalCaloriesBurnedRecord.class),
-            HealthPermission.getReadPermission(ExerciseSessionRecord.class),
-            HealthPermission.getReadPermission(SpeedRecord.class),
-            HealthPermission.getReadPermission(PowerRecord.class)
-    );
 
     public static class PermissionStatus {
         public final boolean allGranted;
@@ -173,9 +160,7 @@ public class SamsungWatchPermissions {
             }
         }
 
-        if (!grantedPermissions.isEmpty() && deniedPermissions.isEmpty()) {
-            // No action needed if all Bluetooth permissions granted
-        } else if (!deniedPermissions.isEmpty()) {
+        if (deniedPermissions.size() > grantedPermissions.size()) {
             requiredActions.add("Grant Bluetooth permissions for Samsung Galaxy Watch 7 connection");
         }
     }
@@ -241,42 +226,6 @@ public class SamsungWatchPermissions {
         } else {
             Log.d(TAG, "✅ All Bluetooth permissions already granted");
         }
-    }
-
-    /**
-     * Request Health Connect permissions for Samsung Galaxy Watch 7 data
-     */
-    public static CompletableFuture<Boolean> requestHealthConnectPermissions(Context context) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Log.d(TAG, "💚 Requesting Health Connect permissions for Samsung Galaxy Watch 7...");
-
-                if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
-                    Log.w(TAG, "❌ Health Connect not available");
-                    return false;
-                }
-
-                HealthConnectClient healthConnectClient = HealthConnectClient.getOrCreate(context);
-                PermissionController permissionController = healthConnectClient.getPermissionController();
-
-                // Check granted permissions
-                Set<String> grantedPermissions = permissionController.getGrantedPermissions().join();
-
-                // Request missing permissions
-                if (!grantedPermissions.containsAll(HEALTH_CONNECT_PERMISSIONS)) {
-                    // In a real app, this would open the Health Connect permission screen
-                    Log.d(TAG, "⚠️ Not all Health Connect permissions granted. User intervention required.");
-                    return false;
-                } else {
-                    Log.d(TAG, "✅ All Health Connect permissions granted");
-                    return true;
-                }
-
-            } catch (Exception e) {
-                Log.e(TAG, "❌ Error requesting Health Connect permissions", e);
-                return false;
-            }
-        });
     }
 
     /**
