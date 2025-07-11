@@ -2,34 +2,35 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Samsung Health Permissions - REAL IMPLEMENTATION -->
-    <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY" />
+    <!-- ✅ REAL HEALTH PERMISSIONS for Samsung Galaxy Watch 7 -->
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.BODY_SENSORS_BACKGROUND" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
-    <!-- Health Connect Permissions - for mock-data implementation -->
+    <!-- ✅ REAL Health Connect Permissions (pentru Samsung Galaxy Watch 7 data) -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_OXYGEN" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" />
     <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
+    <uses-permission android:name="android.permission.health.READ_POWER" />
+    <uses-permission android:name="android.permission.health.READ_SPEED" />
 
-    <!-- Location Permissions -->
+    <!-- ✅ REAL Location Permissions pentru Samsung Galaxy Watch 7 GPS -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
-    <!-- Bluetooth Permissions -->
+    <!-- ✅ REAL Bluetooth Permissions pentru Samsung Galaxy Watch 7 connection -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 
-    <!-- Network Permissions -->
+    <!-- Network Permissions pentru Kafka și PostgreSQL -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -39,16 +40,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
-    <!-- Hardware Features -->
+    <!-- ✅ REAL Hardware Features pentru Samsung Galaxy Watch 7 -->
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.heart_rate" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.step_counter" android:required="false" />
 
-    <!-- Samsung Health Feature -->
-    <uses-feature android:name="com.samsung.android.providers.context" android:required="false" />
+    <!-- ✅ Health Connect Feature -->
+    <uses-feature android:name="android.software.health_connect" android:required="false" />
 
     <application
         android:name=".WatchMyParentApplication"
@@ -63,7 +65,7 @@
         android:theme="@style/Theme.WatchMyParentMobApp"
         tools:targetApi="31">
 
-        <!-- Health Connect Intent Filter -->
+        <!-- ✅ REAL Health Connect Intent Filter pentru Samsung Galaxy Watch 7 -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -113,47 +115,12 @@
             android:name=".MainActivity"
             android:exported="false" />
 
-        <!-- Background Service -->
+        <!-- ✅ REAL Background Service pentru Samsung Galaxy Watch 7 data collection -->
         <service
             android:name=".infrastructure.services.WatchDataCollectionService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="health" />
-
-
-        <!--        &lt;!&ndash; Auth Activities &ndash;&gt;-->
-<!--        <activity-->
-<!--            android:name=".presentation.ui.auth.LoginActivity"-->
-<!--            android:theme="@style/Theme.WatchMyParent.NoActionBar" />-->
-
-<!--        <activity-->
-<!--            android:name=".presentation.ui.auth.RegisterActivity"-->
-<!--            android:theme="@style/Theme.WatchMyParent.NoActionBar" />-->
-
-
-<!--        <activity - de sters-->
-<!--            android:name=".MainActivity"-->
-<!--            android:exported="true">-->
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.MAIN" />-->
-
-<!--                <category android:name="android.intent.category.LAUNCHER" />-->
-<!--            </intent-filter>-->
-<!--        </activity>-->
-
-
-        <!-- Background Service -->
-        <service
-            android:name=".infrastructure.services.WatchDataCollectionService"
-            android:enabled="true"
-            android:exported="false" />
-
-        <!-- Provider for Health Connect -->
-<!--        <provider-->
-<!--            android:name="androidx.health.connect.client.provider.HealthConnectProvider"-->
-<!--            android:authorities="${applicationId}.healthconnect"-->
-<!--            android:exported="false" />-->
-
 
     </application>
 
