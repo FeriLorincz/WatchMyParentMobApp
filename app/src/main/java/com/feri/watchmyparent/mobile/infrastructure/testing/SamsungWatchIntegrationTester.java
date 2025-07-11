@@ -3,6 +3,8 @@ package com.feri.watchmyparent.mobile.infrastructure.testing;
 import android.content.Context;
 import android.util.Log;
 
+import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
+import com.feri.watchmyparent.mobile.application.dto.LocationDataDTO;
 import com.feri.watchmyparent.mobile.application.services.HealthDataApplicationService;
 import com.feri.watchmyparent.mobile.application.services.LocationApplicationService;
 import com.feri.watchmyparent.mobile.application.services.WatchConnectionApplicationService;
@@ -20,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-// Integration Tester pentru Samsung Galaxy Watch 7
+//Integration Tester pentru Samsung Galaxy Watch 7 (Java 8 Compatible)
 // Testează întregul flux: ceas → aplicație → Kafka → PostgreSQL
 
 @Singleton
@@ -62,16 +64,14 @@ public class SamsungWatchIntegrationTester {
         public IntegrationTestResult(boolean overallSuccess, List<String> successfulSteps,
                                      List<String> failedSteps, String summary, long totalTimeMs) {
             this.overallSuccess = overallSuccess;
-            this.successfulSteps = successfulSteps != null ? successfulSteps : new ArrayList<>();
-            this.failedSteps = failedSteps != null ? failedSteps : new ArrayList<>();
+            this.successfulSteps = successfulSteps != null ? successfulSteps : new ArrayList<String>();
+            this.failedSteps = failedSteps != null ? failedSteps : new ArrayList<String>();
             this.summary = summary;
             this.totalTimeMs = totalTimeMs;
         }
     }
 
-    /**
-     * ✅ Rulează testul complet al integrării Samsung Galaxy Watch 7
-     */
+    //Rulează testul complet al integrării Samsung Galaxy Watch 7
     public CompletableFuture<IntegrationTestResult> runCompleteIntegrationTest() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -242,13 +242,13 @@ public class SamsungWatchIntegrationTester {
                     SensorType.ACCELEROMETER
             );
 
-            var sensorData = healthDataService.collectSensorData(TEST_USER_ID, testSensors).join();
+            List<SensorDataDTO> sensorData = healthDataService.collectSensorData(TEST_USER_ID, testSensors).join();
 
             if (sensorData != null && !sensorData.isEmpty()) {
                 successfulSteps.add("✅ Collected " + sensorData.size() + " REAL sensor readings");
 
                 // Verify data quality
-                for (var data : sensorData) {
+                for (SensorDataDTO data : sensorData) {
                     if (data.getValue() > 0) {
                         successfulSteps.add("✅ " + data.getSensorType() + ": " + data.getFormattedValue());
                     } else {
@@ -273,7 +273,7 @@ public class SamsungWatchIntegrationTester {
         Log.d(TAG, "📍 Step 5: Testing REAL location data...");
 
         try {
-            var locationData = locationService.updateUserLocation(TEST_USER_ID).join();
+            LocationDataDTO locationData = locationService.updateUserLocation(TEST_USER_ID).join();
 
             if (locationData != null) {
                 successfulSteps.add("✅ Location updated: " + locationData.getStatus());
@@ -296,7 +296,7 @@ public class SamsungWatchIntegrationTester {
 
         try {
             // Collect one sensor reading
-            var sensorData = healthDataService.collectSensorData(TEST_USER_ID,
+            List<SensorDataDTO> sensorData = healthDataService.collectSensorData(TEST_USER_ID,
                     Arrays.asList(SensorType.HEART_RATE)).join();
 
             if (sensorData == null || sensorData.isEmpty()) {
@@ -304,7 +304,7 @@ public class SamsungWatchIntegrationTester {
                 return false;
             }
 
-            var testData = sensorData.get(0);
+            SensorDataDTO testData = sensorData.get(0);
 
             // Test Kafka transmission
             boolean kafkaSent = false;
@@ -362,9 +362,8 @@ public class SamsungWatchIntegrationTester {
         return new IntegrationTestResult(false, successfulSteps, failedSteps, summary, totalTime);
     }
 
-    /**
-     * ✅ Test rapid pentru verificarea básica
-     */
+    //Test rapid pentru verificare de baza
+
     public CompletableFuture<Boolean> runQuickHealthCheck() {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -395,9 +394,7 @@ public class SamsungWatchIntegrationTester {
         });
     }
 
-    /**
-     * ✅ Generează raport de status
-     */
+    //Generează raport de status
     public CompletableFuture<String> generateStatusReport() {
         return CompletableFuture.supplyAsync(() -> {
             StringBuilder report = new StringBuilder();
@@ -407,14 +404,16 @@ public class SamsungWatchIntegrationTester {
                 report.append("Generated: ").append(new java.util.Date()).append("\n\n");
 
                 // Setup status
-                var setupStatus = SamsungWatchSetupChecker.checkCompleteSetup(context).join();
+                SamsungWatchSetupChecker.WatchSetupStatus setupStatus =
+                        SamsungWatchSetupChecker.checkCompleteSetup(context).join();
                 report.append("📱 SETUP STATUS:\n");
                 report.append("   Overall: ").append(setupStatus.isFullyReady ? "✅ READY" : "❌ INCOMPLETE").append("\n");
                 report.append("   Ready components: ").append(setupStatus.readyComponents.size()).append("\n");
                 report.append("   Missing components: ").append(setupStatus.missingComponents.size()).append("\n\n");
 
                 // Permission status
-                var permissionStatus = SamsungWatchPermissions.checkAllPermissions(context).join();
+                SamsungWatchPermissions.PermissionStatus permissionStatus =
+                        SamsungWatchPermissions.checkAllPermissions(context).join();
                 report.append("🔐 PERMISSIONS:\n");
                 report.append("   Status: ").append(permissionStatus.allGranted ? "✅ ALL GRANTED" : "❌ MISSING SOME").append("\n");
                 report.append("   Granted: ").append(permissionStatus.grantedPermissions.size()).append("\n");
@@ -425,7 +424,7 @@ public class SamsungWatchIntegrationTester {
                 boolean watchConnected = watchConnectionService.isConnected();
                 report.append("   Status: ").append(watchConnected ? "✅ CONNECTED" : "❌ DISCONNECTED").append("\n");
                 if (watchConnected) {
-                    var supportedSensors = watchConnectionService.getSupportedSensors();
+                    List<SensorType> supportedSensors = watchConnectionService.getSupportedSensors();
                     report.append("   Supported sensors: ").append(supportedSensors.size()).append("\n");
                 }
                 report.append("\n");
