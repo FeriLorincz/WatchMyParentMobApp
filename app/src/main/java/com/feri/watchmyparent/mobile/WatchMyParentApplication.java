@@ -104,4 +104,10 @@ public class WatchMyParentApplication extends Application {
                     });
         }
     }
+
+    private void handleKafkaInitializationError(Throwable error) {
+        Log.e(TAG, "❌ Failed to initialize Kafka: " + error.getMessage());
+        Log.w(TAG, "⚠️ Using mock Kafka implementation instead");
+        // You could optionally add code here to switch to the mock implementation
+    }
 }

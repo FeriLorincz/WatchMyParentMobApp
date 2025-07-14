@@ -145,14 +145,22 @@ dependencies {
     implementation('org.apache.kafka:kafka-clients:3.5.1') {
         exclude group: 'org.slf4j', module: 'slf4j-api'
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'com.sun.jmx', module: 'jmxri'
+        exclude group: 'com.sun.jdmk', module: 'jmxtools'
+        exclude group: 'javax.management', module: 'jmx'
+        exclude group: 'javax.management.j2ee', module: 'management-api'
     }
 
     // SLF4J pentru Kafka
     implementation 'org.slf4j:slf4j-api:1.7.36'
     implementation 'org.slf4j:slf4j-simple:1.7.36'
 
-    // ✅ REAL PostgreSQL JDBC Implementation
-    implementation 'org.postgresql:postgresql:42.7.0'
+//    // ✅ REAL PostgreSQL JDBC Implementation
+//    implementation('org.postgresql:postgresql:42.7.0') {
+//        exclude group: 'javax.management', module: 'jmx'
+//        exclude group: 'com.sun.jmx', module: 'jmxri'
+//        exclude group: 'com.sun.jdmk', module: 'jmxtools'
+//    }
 
     // Permissions
     implementation 'com.github.fondesa:kpermissions:3.4.0'

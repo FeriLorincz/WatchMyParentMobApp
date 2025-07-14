@@ -29,6 +29,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
     <!-- Network Permissions pentru Kafka și PostgreSQL -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -114,6 +115,13 @@
         <activity
             android:name=".MainActivity"
             android:exported="false" />
+
+        <!-- Watch Setup Activity -->
+        <activity
+            android:name=".presentation.ui.setup.RealWatchSetupActivity"
+            android:exported="false"
+            android:label="Samsung Watch Setup"
+            android:parentActivityName=".presentation.ui.dashboard.DashboardActivity" />
 
         <!-- ✅ REAL Background Service pentru Samsung Galaxy Watch 7 data collection -->
         <service

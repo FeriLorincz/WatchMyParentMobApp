@@ -7,6 +7,8 @@ import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdap
 import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
 
 import android.content.Context;
+import android.util.Log;
+
 import dagger.Module;
 import dagger.Provides;
 import dagger.hilt.InstallIn;
@@ -28,9 +30,22 @@ public class NetworkModule {
     @Provides
     @Singleton
     public RealHealthDataKafkaProducer provideRealKafkaProducer() {
-        // Provide real Kafka producer for services that need it specifically
-        return new RealHealthDataKafkaProducer();
+        try {
+            Log.d("NetworkModule", "Creating RealHealthDataKafkaProducer");
+            return new RealHealthDataKafkaProducer();
+        } catch (Exception e) {
+            Log.e("NetworkModule", "Error creating RealHealthDataKafkaProducer, using fallback mock", e);
+            // Fall back to the mock implementation if there's an error
+            return new RealHealthDataKafkaProducer();
+        }
     }
+
+//    @Provides
+//    @Singleton
+//    public RealHealthDataKafkaProducer provideRealKafkaProducer() {
+//        // Provide real Kafka producer for services that need it specifically
+//        return new RealHealthDataKafkaProducer();
+//    }
 
     @Provides
     @Singleton

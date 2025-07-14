@@ -258,9 +258,11 @@ public class SamsungWatchSetupChecker {
 
     private static boolean isPackageInstalled(Context context, String packageName) {
         try {
-            context.getPackageManager().getPackageInfo(packageName, PackageManager.GET_ACTIVITIES);
+            context.getPackageManager().getPackageInfo(packageName, 0);
+            Log.d(TAG, "✅ Package found: " + packageName);
             return true;
         } catch (PackageManager.NameNotFoundException e) {
+            Log.d(TAG, "❌ Package not found: " + packageName);
             return false;
         }
     }
