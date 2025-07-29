@@ -24,10 +24,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * ✅ REAL Samsung Health Manager pentru Samsung Galaxy Watch 7
- * Implementare completă pentru citirea datelor reale de la ceas
- */
+//✅ REAL Samsung Health Manager pentru Samsung Galaxy Watch 7
+ // Implementare completă pentru citirea datelor reale de la ceas
 public class RealSamsungHealthManager extends WatchManager implements SensorEventListener{
 
     private static final String TAG = "RealSamsungHealthManager";
@@ -145,10 +143,40 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         registerSensorIfAvailable(Sensor.TYPE_STEP_COUNTER, "Step Counter");
 
         // Accelerometer - for movement and fall detection
-        registerSensorIfAvailable(Sensor.TYPE_ACCELEROMETER, "Accelerometer");
+        // Accelerometer - REDUS la SENSOR_DELAY_NORMAL
+        Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (accelerometer != null) {
+            // Folosim SENSOR_DELAY_NORMAL în loc de SENSOR_DELAY_GAME pentru a reduce frecvența
+            boolean registered = sensorManager.registerListener(
+                    this,
+                    accelerometer,
+                    SensorManager.SENSOR_DELAY_NORMAL,  // Frecvență redusă
+                    1000000  // 1 secundă între actualizări (în microsecunde)
+            );
 
-        // Gyroscope - for orientation and movement
-        registerSensorIfAvailable(Sensor.TYPE_GYROSCOPE, "Gyroscope");
+            if (registered) {
+                registeredSensorTypes.add(Sensor.TYPE_ACCELEROMETER);
+                Log.d(TAG, "✅ Registered Accelerometer sensor with reduced frequency");
+            } else {
+                Log.w(TAG, "⚠️ Failed to register Accelerometer sensor");
+            }
+        }
+
+        // Gyroscope cu frecvență FOARTE redusă
+        Sensor gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        if (gyroscope != null) {
+            boolean registered = sensorManager.registerListener(
+                    this,
+                    gyroscope,
+                    SensorManager.SENSOR_DELAY_NORMAL,  // Frecvență standard
+                    1000000  // 1 secundă între actualizări (în microsecunde)
+            );
+
+            if (registered) {
+                registeredSensorTypes.add(Sensor.TYPE_GYROSCOPE);
+                Log.d(TAG, "✅ Registered Gyroscope sensor with MINIMAL frequency");
+            }
+        }
 
         // Additional sensors that might be available
         registerSensorIfAvailable(Sensor.TYPE_AMBIENT_TEMPERATURE, "Ambient Temperature");
@@ -262,8 +290,16 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
                     SensorReading reading = readSingleSensorData(sensorType);
                     if (reading != null) {
                         readings.add(reading);
+                        Log.d(TAG, "📊 ✅ COLLECTED: " + sensorType + " = " + reading.getValue() + " " + sensorType.getUnit());
+                        Log.d(TAG, "📊 📍 DEVICE: " + reading.getDeviceId());
+                        Log.d(TAG, "📊 ⏰ TIME: " + reading.getTimestamp());
                         Log.d(TAG, "📊 REAL DATA: " + sensorType + " = " + reading.getValue() + " " + sensorType.getUnit());
                     }
+                    if (!readings.isEmpty()) {
+                        Log.d(TAG, "📤 SENDING " + readings.size() + " readings to Kafka/PostgreSQL...");
+                    }
+                    return readings;
+
                 } catch (Exception e) {
                     Log.e(TAG, "❌ Error reading " + sensorType + " from Samsung Galaxy Watch 7", e);
                 }
@@ -377,20 +413,38 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         try {
             SensorType sensorType = mapHardwareSensorToSensorType(event.sensor.getType());
             if (sensorType != null) {
-                double value = event.values[0];
-
-                // Additional processing for specific sensors
+                // Filtrare mai strictă pentru accelerometru și giroscop
                 if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-                    // Calculate magnitude for accelerometer
-                    value = Math.sqrt(event.values[0] * event.values[0] +
-                            event.values[1] * event.values[1] +
-                            event.values[2] * event.values[2]);
+                    // Logăm doar la fiecare 50 evenimente (aproximativ)
+                    if (Math.random() > 0.98) {  // Doar 2% din evenimente
+                        double value = Math.sqrt(event.values[0] * event.values[0] +
+                                event.values[1] * event.values[1] +
+                                event.values[2] * event.values[2]);
+
+                        SensorReading reading = new SensorReading(sensorType, value);
+                        latestReadings.put(sensorType, reading);
+
+                        Log.d(TAG, "🔥 REAL HARDWARE (Accelerometer): " + value + " " + sensorType.getUnit());
+                    }
                 }
+                else if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+                    // Logăm doar la fiecare 50 evenimente (aproximativ)
+                    if (Math.random() > 0.98) {  // Doar 2% din evenimente
+                        double value = event.values[0];
+                        SensorReading reading = new SensorReading(sensorType, value);
+                        latestReadings.put(sensorType, reading);
 
-                SensorReading reading = new SensorReading(sensorType, value);
-                latestReadings.put(sensorType, reading);
+                        Log.d(TAG, "🔥 REAL HARDWARE (Gyroscope): " + value + " " + sensorType.getUnit());
+                    }
+                }
+                else {
+                    // Pentru alți senzori, logăm normal
+                    double value = event.values[0];
+                    SensorReading reading = new SensorReading(sensorType, value);
+                    latestReadings.put(sensorType, reading);
 
-                Log.d(TAG, "🔥 REAL HARDWARE: " + sensorType + " = " + value + " " + sensorType.getUnit());
+                    Log.d(TAG, "🔥 REAL HARDWARE: " + sensorType + " = " + value + " " + sensorType.getUnit());
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "❌ Error processing real sensor data", e);

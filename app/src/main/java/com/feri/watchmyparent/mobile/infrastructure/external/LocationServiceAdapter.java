@@ -23,6 +23,7 @@ public class LocationServiceAdapter {
     private final FusedLocationProviderClient fusedLocationClient;
     private final Geocoder geocoder;
     private LocationCallback locationCallback;
+    private Location lastLocation = null;
 
     public LocationServiceAdapter(Context context) {
         this.context = context;
@@ -161,12 +162,12 @@ public class LocationServiceAdapter {
         }
 
         try {
-            // Use LocationRequest.Builder for newer API
+            // Folosim o frecvență redusă pentru locație - 30 minute
             LocationRequest locationRequest = new LocationRequest.Builder(
                     Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                    600000L // 10 minutes
+                    1800000L  // 30 minute în loc de 10 minute
             )
-                    .setMinUpdateIntervalMillis(300000L) // 5 minutes
+                    .setMinUpdateIntervalMillis(900000L)  // 15 minute minimum interval
                     .build();
 
             locationCallback = new LocationCallback() {
@@ -174,16 +175,20 @@ public class LocationServiceAdapter {
                 public void onLocationResult(LocationResult locationResult) {
                     Location location = locationResult.getLastLocation();
                     if (location != null) {
-                        getAddressFromLocation(location.getLatitude(), location.getLongitude())
-                                .thenAccept(address -> {
-                                    LocationStatus locationStatus = new LocationStatus(
-                                            "AWAY",
-                                            location.getLatitude(),
-                                            location.getLongitude(),
-                                            address
-                                    );
-                                    callback.onLocationUpdate(locationStatus);
-                                });
+                        // Verificăm dacă locația s-a schimbat semnificativ (mai mult de 50m)
+                        if (isSignificantLocationChange(location)) {
+                            getAddressFromLocation(location.getLatitude(), location.getLongitude())
+                                    .thenAccept(address -> {
+                                        LocationStatus locationStatus = new LocationStatus(
+                                                "AWAY",
+                                                location.getLatitude(),
+                                                location.getLongitude(),
+                                                address
+                                        );
+                                        callback.onLocationUpdate(locationStatus);
+                                        lastLocation = location;
+                                    });
+                        }
                     }
                 }
             };
@@ -197,6 +202,14 @@ public class LocationServiceAdapter {
         } catch (SecurityException e) {
             callback.onError(e);
         }
+    }
+
+    private boolean isSignificantLocationChange(Location newLocation) {
+        if (lastLocation == null) return true;
+
+        // Consideră semnificativă o schimbare de peste 50 metri
+        float distance = newLocation.distanceTo(lastLocation);
+        return distance > 50.0f;
     }
 
     public void stopLocationUpdates() {

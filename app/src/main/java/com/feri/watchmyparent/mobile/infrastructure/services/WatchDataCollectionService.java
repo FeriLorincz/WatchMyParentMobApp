@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Handler;
@@ -13,6 +14,9 @@ import android.os.Looper;
 import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
+
+import android.Manifest;
 import com.feri.watchmyparent.mobile.R;
 import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
 import com.feri.watchmyparent.mobile.application.services.HealthDataApplicationService;
@@ -97,23 +101,72 @@ public class WatchDataCollectionService extends Service {
         // Start as foreground service
         startForeground(NOTIFICATION_ID, createServiceNotification());
 
-        // Check if Samsung Galaxy Watch 7 is ready before starting
-        checkSamsungWatchReadiness()
+        // Check if Samsung Galaxy Watch 7 is ready - cu o abordare mai permisivă
+        checkSamsungWatchReadinessPermissive()
                 .thenAccept(ready -> {
                     if (ready) {
                         startRealDataCollection();
                     } else {
-                        Log.w(TAG, "⚠️ Samsung Galaxy Watch 7 not ready, will retry periodically");
-                        scheduleReadinessCheck();
+                        Log.w(TAG, "⚠️ Samsung Galaxy Watch 7 not fully ready, but trying anyway");
+                        startRealDataCollectionWithFallback();
                     }
                 })
                 .exceptionally(throwable -> {
                     Log.e(TAG, "❌ Error checking Samsung Galaxy Watch 7 readiness", throwable);
-                    scheduleReadinessCheck();
+                    startRealDataCollectionWithFallback();
                     return null;
                 });
 
         return START_STICKY; // Restart service if killed
+    }
+
+    // Adăugăm o metodă mai permisivă pentru verificarea watch-ului
+    private CompletableFuture<Boolean> checkSamsungWatchReadinessPermissive() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Verificăm doar existența permisiunilor minime esențiale
+                boolean hasMinimalPermissions =
+                        ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS)
+                                == PackageManager.PERMISSION_GRANTED;
+
+                Log.d(TAG, "📊 Samsung Galaxy Watch 7 minimal readiness check:");
+                Log.d(TAG, "   Essential permissions: " + (hasMinimalPermissions ? "✅" : "❌"));
+
+                return hasMinimalPermissions;
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Error checking minimal readiness", e);
+                return false;
+            }
+        });
+    }
+
+    // Adăugăm o metodă de fallback
+    private void startRealDataCollectionWithFallback() {
+        Log.d(TAG, "🔄 Starting data collection with fallback mechanisms...");
+
+        isServiceRunning = true;
+
+        // Connect to watch with fallback to simulated data
+        watchConnectionService.connectWatchWithFallback()
+                .thenAccept(status -> {
+                    isWatchConnected = status.isPartiallyConnected() || status.isConnected();
+
+                    if (isWatchConnected) {
+                        Log.d(TAG, "✅ Watch connected (partial or full), starting data collection tasks");
+
+                        // Start all periodic tasks with longer intervals for fallback mode
+                        handler.post(criticalSensorTask);
+                        handler.postDelayed(importantSensorTask, 60000); // Delay by 1 minute
+                        handler.postDelayed(regularSensorTask, 120000);  // Delay by 2 minutes
+                        handler.postDelayed(locationUpdateTask, 180000); // Delay by 3 minutes
+
+                        updateServiceNotification("✅ Collecting data (fallback mode)");
+                    } else {
+                        Log.e(TAG, "❌ Failed to connect to watch even in fallback mode");
+                        updateServiceNotification("❌ Connection failed");
+                        stopSelf();
+                    }
+                });
     }
 
     private void setupRealDataCollectionTasks() {

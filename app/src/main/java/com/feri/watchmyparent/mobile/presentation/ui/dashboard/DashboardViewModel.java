@@ -13,6 +13,7 @@ import com.feri.watchmyparent.mobile.application.services.LocationApplicationSer
 import com.feri.watchmyparent.mobile.application.services.WatchConnectionApplicationService;
 import com.feri.watchmyparent.mobile.domain.entities.LocationData;
 import com.feri.watchmyparent.mobile.domain.entities.SensorData;
+import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.domain.repositories.LocationDataRepository;
 import com.feri.watchmyparent.mobile.domain.repositories.SensorDataRepository;
 import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
@@ -215,7 +216,7 @@ public class DashboardViewModel extends BaseViewModel {
         }
 
         setLoading(true);
-        healthDataService.collectSensorData(currentUserId)
+        healthDataService.collectSensorData(currentUserId, List.of(SensorType.values()))
                 .thenAccept(sensorDataList -> {
                     Log.d(TAG, "✅ Collected " + sensorDataList.size() + " REAL sensor readings");
                     // Refresh the display after collecting new data

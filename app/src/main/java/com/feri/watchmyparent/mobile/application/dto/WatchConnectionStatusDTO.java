@@ -6,13 +6,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class WatchConnectionStatusDTO {
-
     private boolean isConnected;
     private String deviceId;
     private String deviceName;
     private LocalDateTime lastConnectionTime;
     private List<SensorType> supportedSensors;
     private String connectionError;
+    private boolean partiallyConnected; // Adăugat nou
 
     public WatchConnectionStatusDTO() {}
 
@@ -21,6 +21,16 @@ public class WatchConnectionStatusDTO {
         this.deviceId = deviceId;
         this.deviceName = deviceName;
         this.lastConnectionTime = isConnected ? LocalDateTime.now() : null;
+        this.partiallyConnected = false; // Default: nu este parțial conectat
+    }
+
+    // Constructor nou cu partiallyConnected
+    public WatchConnectionStatusDTO(boolean isConnected, String deviceId, String deviceName, boolean partiallyConnected) {
+        this.isConnected = isConnected;
+        this.deviceId = deviceId;
+        this.deviceName = deviceName;
+        this.lastConnectionTime = isConnected ? LocalDateTime.now() : null;
+        this.partiallyConnected = partiallyConnected;
     }
 
     // Getters and Setters
@@ -48,7 +58,21 @@ public class WatchConnectionStatusDTO {
     public String getConnectionError() { return connectionError; }
     public void setConnectionError(String connectionError) { this.connectionError = connectionError; }
 
+    // Metodă nouă pentru partiallyConnected
+    public boolean isPartiallyConnected() {
+        return partiallyConnected;
+    }
+
+    // Setter nou pentru partiallyConnected
+    public void setPartiallyConnected(boolean partiallyConnected) {
+        this.partiallyConnected = partiallyConnected;
+    }
+
     public String getStatusText() {
-        return isConnected ? "Connected" : "Disconnected";
+        if (isConnected) {
+            return partiallyConnected ? "Partially Connected" : "Connected";
+        } else {
+            return "Disconnected";
+        }
     }
 }

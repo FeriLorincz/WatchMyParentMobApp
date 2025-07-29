@@ -32,6 +32,7 @@ import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManagerFactory;
 import com.feri.watchmyparent.mobile.presentation.ui.common.BaseActivity;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import dagger.hilt.android.AndroidEntryPoint;
@@ -198,66 +199,282 @@ public class RealWatchSetupActivity extends BaseActivity {
                 hasBluetoothConnect && hasBluetoothScan && hasBluetoothAdvertise;
     }
 
+
+    // Îmbunătățire pentru RealWatchSetupActivity.java - metoda checkRequiredApps()
+    // ✅ IMPROVED - Înlocuiește metoda checkRequiredApps() în RealWatchSetupActivity.java
     private boolean checkRequiredApps() {
+        Log.d(TAG, "🔍 Starting Samsung Health detection...");
 
-        // Log all installed packages that contain "health" to find the Samsung Health package
-        List<ApplicationInfo> apps = getPackageManager().getInstalledApplications(PackageManager.GET_META_DATA);
-        for (ApplicationInfo app : apps) {
-            if (app.packageName.toLowerCase().contains("health") ||
-                    app.packageName.toLowerCase().contains("samsung")) {
-                Log.d("RealWatchSetupActivity", "Found health-related app: " + app.packageName);
-            }
-        }
-        boolean healthConnectInstalled = isPackageInstalled(HEALTH_CONNECT_PACKAGE);
-        boolean samsungHealthInstalled = isPackageInstalled(SAMSUNG_HEALTH_PACKAGE);
-
-        // Log app status
-        Log.d("RealWatchSetupActivity", "App Status:");
-        Log.d("RealWatchSetupActivity", "- Health Connect: " + healthConnectInstalled);
-        Log.d("RealWatchSetupActivity", "- Samsung Health: " + samsungHealthInstalled);
-
-        if (!healthConnectInstalled) {
-            Log.d("RealWatchSetupActivity", "Health Connect not found with package: " + HEALTH_CONNECT_PACKAGE);
+        // ✅ STEP 1: Check NEW Samsung Health Data Service availability
+        boolean isHealthServiceAvailable = false;
+        try {
+            // Noul API Samsung Health Data 1.0.0-b2 - Verifică dacă clasa există (noul API)
+            Class.forName("com.samsung.android.sdk.health.data.HealthDataService");
+            isHealthServiceAvailable = true;
+            Log.d(TAG, "📱 Samsung Health Data Service available: true");
+        } catch (ClassNotFoundException e) {
+            Log.w(TAG, "Samsung Health Data Service not available");
+            isHealthServiceAvailable = false;
         }
 
-        if (!samsungHealthInstalled) {
-            Log.d("RealWatchSetupActivity", "Samsung Health not found with package: " + SAMSUNG_HEALTH_PACKAGE);
+        // ✅ STEP 2: Check Health Connect as modern alternative
+        boolean healthConnectAvailable = false;
+        try {
+            int hcStatus = HealthConnectClient.getSdkStatus(this);
+            healthConnectAvailable = (hcStatus == HealthConnectClient.SDK_AVAILABLE);
+            Log.d(TAG, "📱 Health Connect available: " + healthConnectAvailable);
+        } catch (Exception e) {
+            Log.w(TAG, "Health Connect not available: " + e.getMessage());
         }
 
-        // Try alternative package names if not found
-        if (!healthConnectInstalled) {
-            String[] alternativePackages = {
-                    "com.google.android.apps.healthdata",
-                    "com.google.android.healthconnect.service",
-                    "com.android.healthconnect.controller"
-            };
+        // ✅ STEP 3: Check Galaxy Wearable (ESSENTIAL for watch connection)
+        List<String> wearablePackages = Arrays.asList(
+                "com.samsung.android.app.watchmanager",  // Main Galaxy Wearable
+                "com.samsung.android.geargplugin",       // Gear Plugin
+                "com.samsung.android.gearoplugin"        // Gear O Plugin
+        );
 
-            for (String pkg : alternativePackages) {
-                if (isPackageInstalled(pkg)) {
-                    Log.d("RealWatchSetupActivity", "Found Health Connect with alternative package: " + pkg);
-                    healthConnectInstalled = true;
-                    break;
-                }
-            }
-        }
+        boolean wearableFound = false;
+        String foundWearablePackage = null;
 
-        if (!samsungHealthInstalled) {
-            String[] alternativePackages = {
-                    "com.sec.android.app.shealth",
-                    "com.samsung.health"
-            };
-
-            for (String pkg : alternativePackages) {
-                if (isPackageInstalled(pkg)) {
-                    Log.d("RealWatchSetupActivity", "Found Samsung Health with alternative package: " + pkg);
-                    samsungHealthInstalled = true;
-                    break;
-                }
+        for (String wearablePkg : wearablePackages) {
+            if (isPackageInstalled(wearablePkg)) {
+                wearableFound = true;
+                foundWearablePackage = wearablePkg;
+                Log.i(TAG, "✅ Galaxy Wearable FOUND: " + foundWearablePackage);
+                break;
             }
         }
 
-        return healthConnectInstalled && samsungHealthInstalled;
+        // ✅ STEP 4: Final decision logic
+        Log.i(TAG, "=== DETECTION RESULTS ===");
+        Log.i(TAG, "Samsung Health Data Service: " + (isHealthServiceAvailable ? "✅" : "❌"));
+        Log.i(TAG, "Health Connect: " + (healthConnectAvailable ? "✅" : "❌"));
+        Log.i(TAG, "Galaxy Wearable: " + (wearableFound ? "✅ (" + foundWearablePackage + ")" : "❌"));
+
+        // ✅ CRITICAL: Galaxy Wearable is ESSENTIAL for watch connection
+        if (!wearableFound) {
+            Log.e(TAG, "❌ CRITICAL: Galaxy Wearable NOT FOUND!");
+            showMissingAppsDialog("Galaxy Wearable is required to connect to your Samsung Galaxy Watch 7. Please install it from Galaxy Store.");
+            return false;
+        }
+
+        // ✅ Optimal: Any health service + Wearable
+        if ((isHealthServiceAvailable || healthConnectAvailable) && wearableFound) {
+            Log.i(TAG, "🎉 OPTIMAL SETUP: Health service + Galaxy Wearable ready!");
+            return true;
+        }
+
+        // ✅ Acceptable: Wearable only on Samsung device
+        if (wearableFound && isSamsungDevice()) {
+            Log.w(TAG, "⚠️ ACCEPTABLE: Galaxy Wearable found on Samsung device");
+            return true;
+        }
+
+        // ❌ Insufficient setup
+        Log.e(TAG, "❌ INSUFFICIENT SETUP for Samsung Galaxy Watch 7 connection");
+        showMissingAppsDialog("Please install Samsung Health and Galaxy Wearable to connect to your Samsung Galaxy Watch 7.");
+        return false;
     }
+
+    private boolean isSamsungDevice() {
+        String manufacturer = android.os.Build.MANUFACTURER.toLowerCase();
+        String brand = android.os.Build.BRAND.toLowerCase();
+        return manufacturer.contains("samsung") || brand.contains("samsung");
+    }
+
+    private void showMissingAppsDialog(String message) {
+        new AlertDialog.Builder(this)
+                .setTitle("Required Apps Missing")
+                .setMessage(message)
+                .setPositiveButton("Install Apps", (dialog, which) -> {
+                    // Open Galaxy Store/Play Store
+                    openPlayStore("com.samsung.android.app.watchmanager"); // Galaxy Wearable
+                })
+                .setNegativeButton("Later", null)
+                .show();
+    }
+
+
+
+//private boolean checkRequiredApps() {
+//    Log.d(TAG, "🔍 Starting enhanced Samsung Health detection...");
+//
+//    // Lista extinsă de pachete Samsung Health (inclusiv variante Google Play)
+//    List<String> samsungHealthPackages = Arrays.asList(
+//            "com.sec.android.app.shealth",           // Galaxy Store standard
+//            "com.sec.android.app.samsung.health",
+//            "com.samsung.health",                     // Alternative package
+//            "com.samsung.android.app.health",        // Another variant
+//            "com.samsung.android.app.shealth",
+//            "com.samsung.android.shealthmonitor",    // Health Monitor
+//            "com.sec.health",                        // Short variant
+//            "com.samsung.shealth",                   // Possible variant
+//            "com.samsung.android.shealth",            // Google Play variant
+//            "com.samsung.shealth"
+//    );
+//
+//    // Galaxy Wearable packages (CRUCIAL pentru conectarea la ceas)
+//    List<String> wearablePackages = Arrays.asList(
+//            "com.samsung.android.app.watchmanager",  // Main Galaxy Wearable
+//            "com.samsung.android.geargplugin",       // Gear Plugin
+//            "com.samsung.android.gearoplugin",       // Gear O Plugin
+//            "com.samsung.android.app.wearable",      // Generic Wearable
+//            "com.samsung.android.wearablewm"         // Wearable Manager
+//    );
+//
+//    // Health Connect packages
+//    List<String> healthConnectPackages = Arrays.asList(
+//            "com.google.android.apps.healthdata",
+//            "com.google.android.healthconnect.service",
+//            "com.android.healthconnect.controller",
+//            "com.google.android.health.connect.restore"
+//    );
+//
+//    // ENHANCED DETECTION: Scanează toate aplicațiile instalate
+//    List<ApplicationInfo> allApps = getPackageManager().getInstalledApplications(PackageManager.GET_META_DATA);
+//
+//    // Detection results
+//    boolean samsungHealthFound = false;
+//    boolean wearableFound = false;
+//    boolean healthConnectFound = false;
+//
+//    String foundSamsungHealthPackage = null;
+//    String foundWearablePackage = null;
+//    String foundHealthConnectPackage = null;
+//
+//    List<String> allSamsungApps = new ArrayList<>();
+//    List<String> allHealthRelatedApps = new ArrayList<>();
+//
+//    // COMPREHENSIVE SCAN
+//    for (ApplicationInfo app : allApps) {
+//        String packageName = app.packageName;
+//
+//        // Collect all Samsung apps for analysis
+//        if (packageName.contains("samsung")) {
+//            allSamsungApps.add(packageName);
+//        }
+//
+//        // Collect all health-related apps
+//        if (packageName.toLowerCase().contains("health") ||
+//            packageName.toLowerCase().contains("shealth") ||
+//            packageName.toLowerCase().contains("wellness")) {
+//            allHealthRelatedApps.add(packageName);
+//        }
+//
+//        // Check Samsung Health packages
+//        for (String healthPkg : samsungHealthPackages) {
+//            if (packageName.equals(healthPkg)) {
+//                samsungHealthFound = true;
+//                foundSamsungHealthPackage = packageName;
+//                Log.d(TAG, "✅ Samsung Health FOUND: " + packageName);
+//                break;
+//            }
+//        }
+//
+//        // Check Wearable packages
+//        for (String wearablePkg : wearablePackages) {
+//            if (packageName.equals(wearablePkg)) {
+//                wearableFound = true;
+//                foundWearablePackage = packageName;
+//                Log.d(TAG, "✅ Galaxy Wearable FOUND: " + packageName);
+//                break;
+//            }
+//        }
+//
+//        // Check Health Connect packages
+//        for (String hcPkg : healthConnectPackages) {
+//            if (packageName.equals(hcPkg)) {
+//                healthConnectFound = true;
+//                foundHealthConnectPackage = packageName;
+//                Log.d(TAG, "✅ Health Connect FOUND: " + packageName);
+//                break;
+//            }
+//        }
+//    }
+//
+//    // DETAILED LOGGING pentru debugging
+//    Log.i(TAG, "=== COMPREHENSIVE APP DETECTION RESULTS ===");
+//    Log.i(TAG, "📱 Total Samsung apps found: " + allSamsungApps.size());
+//    for (String app : allSamsungApps) {
+//        Log.i(TAG, "   Samsung app: " + app);
+//    }
+//
+//    Log.i(TAG, "🏥 Total health-related apps found: " + allHealthRelatedApps.size());
+//    for (String app : allHealthRelatedApps) {
+//        Log.i(TAG, "   Health app: " + app);
+//    }
+//
+//    Log.i(TAG, "📊 DETECTION SUMMARY:");
+//    Log.i(TAG, "   Samsung Health: " + (samsungHealthFound ? "✅ FOUND (" + foundSamsungHealthPackage + ")" : "❌ NOT FOUND"));
+//    Log.i(TAG, "   Galaxy Wearable: " + (wearableFound ? "✅ FOUND (" + foundWearablePackage + ")" : "❌ NOT FOUND"));
+//    Log.i(TAG, "   Health Connect: " + (healthConnectFound ? "✅ FOUND (" + foundHealthConnectPackage + ")" : "❌ NOT FOUND"));
+//
+//    // SMART DETECTION: Căutare fuzzy pentru Samsung Health
+//    if (!samsungHealthFound) {
+//        Log.w(TAG, "🔍 Samsung Health not found in standard packages, trying fuzzy search...");
+//
+//        for (String app : allHealthRelatedApps) {
+//            if (app.toLowerCase().contains("samsung") || app.toLowerCase().contains("shealth")) {
+//                Log.w(TAG, "🤔 Potential Samsung Health app found: " + app);
+//                samsungHealthFound = true;
+//                foundSamsungHealthPackage = app;
+//                break;
+//            }
+//        }
+//    }
+//
+//    // CRITICAL CHECK: Galaxy Wearable is ESSENTIAL
+//    if (!wearableFound) {
+//        Log.e(TAG, "❌ CRITICAL: Galaxy Wearable NOT FOUND!");
+//        Log.e(TAG, "❌ Cannot connect to Samsung Galaxy Watch 7 without Galaxy Wearable app");
+//        Log.e(TAG, "❌ Please install 'Galaxy Wearable' from Galaxy Store or Google Play Store");
+//    }
+//
+//    // Check if device is Samsung (should have priority for Samsung Health)
+//    boolean isSamsungDevice = checkSamsungDevice();
+//    Log.i(TAG, "📱 Samsung device: " + (isSamsungDevice ? "✅ YES" : "❌ NO"));
+//
+//    // FINAL DECISION LOGIC
+//    boolean canProceed = false;
+//
+//    if (wearableFound && healthConnectFound) {
+//        // Best case: Galaxy Wearable + Health Connect
+//        canProceed = true;
+//        Log.i(TAG, "✅ OPTIMAL SETUP: Galaxy Wearable + Health Connect available");
+//    } else if (wearableFound && samsungHealthFound) {
+//        // Good case: Galaxy Wearable + Samsung Health
+//        canProceed = true;
+//        Log.i(TAG, "✅ GOOD SETUP: Galaxy Wearable + Samsung Health available");
+//    } else if (wearableFound && isSamsungDevice) {
+//        // Acceptable: Galaxy Wearable on Samsung device (Samsung Health might be hidden)
+//        canProceed = true;
+//        Log.w(TAG, "⚠️ ACCEPTABLE SETUP: Galaxy Wearable on Samsung device");
+//    } else {
+//        // Not sufficient
+//        Log.e(TAG, "❌ INSUFFICIENT SETUP for Samsung Galaxy Watch 7 connection");
+//    }
+//
+//    Log.i(TAG, "🎯 FINAL RESULT: Can proceed with connection = " + canProceed);
+//    Log.i(TAG, "==========================================");
+//
+//    return canProceed;
+//}
+
+private boolean checkSamsungDevice() {
+    // Check multiple indicators of Samsung device
+    String manufacturer = android.os.Build.MANUFACTURER.toLowerCase();
+    String brand = android.os.Build.BRAND.toLowerCase();
+    String model = android.os.Build.MODEL.toLowerCase();
+
+    boolean isSamsung = manufacturer.contains("samsung") ||
+                       brand.contains("samsung") ||
+                       model.contains("galaxy");
+
+    Log.d(TAG, "Device info - Manufacturer: " + manufacturer + ", Brand: " + brand + ", Model: " + model);
+
+    return isSamsung;
+}
 
     private void updateSetupStatusUI(boolean hasPermissions, boolean hasApps) {
         // Update permission status

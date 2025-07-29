@@ -2,6 +2,7 @@ package com.feri.watchmyparent.mobile.presentation.ui.dashboard;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -12,6 +13,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.feri.watchmyparent.mobile.WatchMyParentApplication;
+import com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO;
 import com.feri.watchmyparent.mobile.infrastructure.services.WatchDataCollectionService;
 import com.feri.watchmyparent.mobile.infrastructure.utils.DemoDataInitializer;
 import com.feri.watchmyparent.mobile.infrastructure.utils.SamsungWatchPermissions;
@@ -316,32 +318,32 @@ public class DashboardActivity extends BaseActivity {
         });
     }
 
-    private void updateConnectionUI(com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO status) {
-        if (status.isConnected()) {
-            connectWatchButton.setText("Disconnect Samsung Galaxy Watch 7");
-            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.disconnect_red));
-            connectionStatusText.setText("✅ Connected: " + status.getDeviceName() + " (REAL Samsung Galaxy Watch 7)");
-            connectionStatusText.setTextColor(getColor(R.color.connected_green));
-            collectDataButton.setEnabled(true);
-
-            // Hide setup components when connected
-            watchSetupButton.setVisibility(View.GONE);
-            fabWatchSetup.setVisibility(View.GONE);
-        } else {
-            connectWatchButton.setText("Connect Samsung Galaxy Watch 7");
-            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.connect_blue));
-            connectionStatusText.setText("❌ Disconnected from Samsung Galaxy Watch 7");
-            connectionStatusText.setTextColor(getColor(R.color.disconnected_red));
-            collectDataButton.setEnabled(false);
-
-            // Show setup components when disconnected
-            if (setupStatus == null || !setupStatus.isFullyReady ||
-                    permissionStatus == null || !permissionStatus.allGranted) {
-                watchSetupButton.setVisibility(View.VISIBLE);
-                fabWatchSetup.setVisibility(View.VISIBLE);
-            }
-        }
-    }
+//    private void updateConnectionUI(com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO status) {
+//        if (status.isConnected()) {
+//            connectWatchButton.setText("Disconnect Samsung Galaxy Watch 7");
+//            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.disconnect_red));
+//            connectionStatusText.setText("✅ Connected: " + status.getDeviceName() + " (REAL Samsung Galaxy Watch 7)");
+//            connectionStatusText.setTextColor(getColor(R.color.connected_green));
+//            collectDataButton.setEnabled(true);
+//
+//            // Hide setup components when connected
+//            watchSetupButton.setVisibility(View.GONE);
+//            fabWatchSetup.setVisibility(View.GONE);
+//        } else {
+//            connectWatchButton.setText("Connect Samsung Galaxy Watch 7");
+//            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.connect_blue));
+//            connectionStatusText.setText("❌ Disconnected from Samsung Galaxy Watch 7");
+//            connectionStatusText.setTextColor(getColor(R.color.disconnected_red));
+//            collectDataButton.setEnabled(false);
+//
+//            // Show setup components when disconnected
+//            if (setupStatus == null || !setupStatus.isFullyReady ||
+//                    permissionStatus == null || !permissionStatus.allGranted) {
+//                watchSetupButton.setVisibility(View.VISIBLE);
+//                fabWatchSetup.setVisibility(View.VISIBLE);
+//            }
+//        }
+//    }
 
     private void updateLocationUI(com.feri.watchmyparent.mobile.application.dto.LocationDataDTO location) {
         if (location.isAtHome()) {
@@ -396,13 +398,65 @@ public class DashboardActivity extends BaseActivity {
         }
     }
 
+    // ✅ ADAUGĂ în DashboardActivity.java - onResume()
+
     @Override
     protected void onResume() {
         super.onResume();
 
+        // ✅ NEW: Verifică Samsung Health status
+        checkSamsungHealthStatus();
+
         // Re-check setup status when returning to activity
         checkSamsungWatchSetup();
         viewModel.refreshData();
+    }
+
+    private void checkSamsungHealthStatus() {
+        // Check if Samsung Health Data Service is available (new API)
+        try {
+            Class.forName("com.samsung.android.sdk.health.data.HealthDataService");
+            Log.d(TAG, "✅ Samsung Health Data Service is available");
+            if (setupStatusText != null) {
+                setupStatusText.append("\n✅ Samsung Health Data Service: Ready");
+            }
+        } catch (ClassNotFoundException e) {
+            Log.w(TAG, "⚠️ Samsung Health Data Service not available");
+            if (setupStatusText != null) {
+                setupStatusText.append("\n⚠️ Samsung Health Data Service: Not available - using Health Connect");
+            }
+        }
+    }
+
+    // ✅ NEW: Enhanced connection status update
+    private void updateConnectionUI(WatchConnectionStatusDTO status) {
+        if (status.isConnected()) {
+            connectWatchButton.setText("Disconnect Samsung Galaxy Watch 7");
+            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.disconnect_red));
+
+            // ✅ SHOW REAL connection type
+            String connectionInfo = status.getDeviceName();
+            if (status.getDeviceId() != null && status.getDeviceId().contains("real_sdk")) {
+                connectionInfo += " (REAL Samsung Health SDK)";
+            } else if (status.getDeviceId() != null && status.getDeviceId().contains("real")) {
+                connectionInfo += " (REAL Health Connect + Sensors)";
+            }
+
+            connectionStatusText.setText("✅ Connected: " + connectionInfo);
+            connectionStatusText.setTextColor(getColor(R.color.connected_green));
+            collectDataButton.setEnabled(true);
+
+            // Hide setup components when connected
+            if (watchSetupButton != null) watchSetupButton.setVisibility(View.GONE);
+            if (fabWatchSetup != null) fabWatchSetup.setVisibility(View.GONE);
+        } else {
+            // Handle disconnected state...
+            connectWatchButton.setText("Connect Samsung Galaxy Watch 7");
+            connectWatchButton.setBackgroundTintList(getColorStateList(R.color.connect_blue));
+            connectionStatusText.setText("❌ Disconnected from Samsung Galaxy Watch 7");
+            connectionStatusText.setTextColor(getColor(R.color.disconnected_red));
+            collectDataButton.setEnabled(false);
+        }
     }
 
     @Override

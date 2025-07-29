@@ -2,14 +2,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ✅ NEW: Samsung Health queries for Android 11+ -->
+    <queries>
+        <package android:name="com.sec.android.app.shealth" />
+        <package android:name="com.samsung.android.app.watchmanager" />
+        <package android:name="com.samsung.android.shealthmonitor" />
+        <package android:name="com.samsung.android.geargplugin" />
+    </queries>
+
     <!-- ✅ REAL HEALTH PERMISSIONS for Samsung Galaxy Watch 7 -->
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.BODY_SENSORS_BACKGROUND" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
+    <!-- ✅ Samsung Health specific permissions -->
+    <uses-permission android:name="com.samsung.android.providers.context.permission.WRITE_USE_APP_FEATURE_SURVEY" />
+    <uses-permission android:name="com.samsung.shealth.permission.READ" />
+    <uses-permission android:name="com.samsung.shealth.permission.WRITE" />
+
     <!-- ✅ REAL Health Connect Permissions (pentru Samsung Galaxy Watch 7 data) -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_OXYGEN" />
+    <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" />
     <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
@@ -66,6 +80,19 @@
         android:theme="@style/Theme.WatchMyParentMobApp"
         tools:targetApi="31">
 
+
+        <!-- ✅ Samsung Health intent filter -->
+        <activity-alias
+            android:name="SamsungHealthIntentActivity"
+            android:exported="true"
+            android:targetActivity=".presentation.ui.dashboard.DashboardActivity">
+            <intent-filter>
+                <action android:name="com.samsung.android.sdk.healthdata.REQUEST_PERMISSION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+
         <!-- ✅ REAL Health Connect Intent Filter pentru Samsung Galaxy Watch 7 -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
@@ -76,6 +103,12 @@
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
         </activity-alias>
+
+        <!-- ✅ Samsung Health SDK Configuration -->
+        <meta-data
+            android:name="com.samsung.android.health.permission.read"
+            android:value="com.samsung.health.heart_rate;com.samsung.health.blood_oxygen;com.samsung.health.blood_pressure;com.samsung.health.skin_temperature;com.samsung.health.sleep;com.samsung.health.blood_glucose" />
+
 
         <!-- Main Dashboard Activity -->
         <activity

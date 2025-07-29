@@ -33,6 +33,9 @@ public class AndroidCompatibleKafkaProducer {
                         -> context.serialize(src.toString()))
                 .create();
 
+        // Setăm calea pentru log-uri
+        System.setProperty("kafka.logs.dir", "C:/Kafka/logs");
+
         testConnection();
     }
 
@@ -88,25 +91,68 @@ public class AndroidCompatibleKafkaProducer {
                 String host = serverParts[0];
                 int port = Integer.parseInt(serverParts[1]);
 
-                // Use TCP Socket approach to connect to Kafka
-                // This is a simplified implementation that works for basic Kafka interaction
-                java.net.Socket socket = new java.net.Socket(host, port);
+                // Folosim HTTP pentru a trimite către Kafka REST Proxy dacă este disponibil
+                // Altfel revenim la abordarea cu socket
+                boolean sent = false;
+                try {
+                    sent = sendViaRESTProxy(host, jsonData, messageKey);
+                } catch (Exception e) {
+                    Log.w(TAG, "⚠️ REST Proxy not available, falling back to direct socket");
+                    sent = sendViaSocket(host, port, jsonData, messageKey);
+                }
 
-                // For actual implementation, we would construct a proper Kafka protocol message
-                // But for now, we'll just log success and return true
-                socket.close();
+                if (sent) {
+                    Log.d(TAG, "📤 Sent data to Kafka: " + topicName);
+                    Log.d(TAG, "📤 Message key: " + messageKey);
+                    Log.d(TAG, "📤 Data size: " + jsonData.length() + " bytes");
+                }
 
-                Log.d(TAG, "📤 Sent data to Kafka: " + topicName);
-                Log.d(TAG, "📤 Message key: " + messageKey);
-                Log.d(TAG, "📤 Data size: " + jsonData.length() + " bytes");
-
-                return true;
+                return sent;
             } catch (Exception e) {
                 Log.e(TAG, "❌ Error sending health data: " + e.getMessage(), e);
                 return false;
             }
         });
     }
+
+    private boolean sendViaRESTProxy(String host, String jsonData, String messageKey) throws IOException {
+        URL url = new URL("http://" + host + ":8082/topics/" + topicName);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/vnd.kafka.json.v2+json");
+        connection.setDoOutput(true);
+
+        String requestBody = "{\"records\":[{\"key\":\"" + messageKey + "\",\"value\":" + jsonData + "}]}";
+
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream()))) {
+            writer.write(requestBody);
+        }
+
+        int responseCode = connection.getResponseCode();
+        return responseCode >= 200 && responseCode < 300;
+    }
+
+    private boolean sendViaSocket(String host, int port, String jsonData, String messageKey) {
+        try {
+            // Socket approach
+            java.net.Socket socket = new java.net.Socket(host, port);
+
+            // Construim un mesaj pentru Kafka
+            String message = messageKey + ":" + jsonData + "\n";
+
+            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))) {
+                writer.write(message);
+                writer.flush();
+            }
+
+            socket.close();
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Socket error: " + e.getMessage(), e);
+            return false;
+        }
+    }
+
 
     public boolean isConnected() {
         return isConnected;
