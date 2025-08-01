@@ -3,7 +3,6 @@ package com.feri.watchmyparent.mobile.presentation.ui.dashboard;
 import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 
 import com.feri.watchmyparent.mobile.application.dto.LocationDataDTO;
 import com.feri.watchmyparent.mobile.application.dto.SensorDataDTO;
@@ -11,24 +10,15 @@ import com.feri.watchmyparent.mobile.application.dto.WatchConnectionStatusDTO;
 import com.feri.watchmyparent.mobile.application.services.HealthDataApplicationService;
 import com.feri.watchmyparent.mobile.application.services.LocationApplicationService;
 import com.feri.watchmyparent.mobile.application.services.WatchConnectionApplicationService;
-import com.feri.watchmyparent.mobile.domain.entities.LocationData;
-import com.feri.watchmyparent.mobile.domain.entities.SensorData;
 import com.feri.watchmyparent.mobile.domain.enums.SensorType;
-import com.feri.watchmyparent.mobile.domain.repositories.LocationDataRepository;
-import com.feri.watchmyparent.mobile.domain.repositories.SensorDataRepository;
-import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
-import com.feri.watchmyparent.mobile.infrastructure.services.WatchConnectionService;
 import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
 import com.feri.watchmyparent.mobile.presentation.ui.common.BaseViewModel;
 
 import javax.inject.Inject;
 import dagger.hilt.android.lifecycle.HiltViewModel;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @HiltViewModel

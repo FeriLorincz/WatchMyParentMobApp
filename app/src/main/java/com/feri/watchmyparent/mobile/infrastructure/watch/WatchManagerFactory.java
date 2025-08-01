@@ -3,9 +3,10 @@ package com.feri.watchmyparent.mobile.infrastructure.watch;
 import android.content.Context;
 import android.util.Log;
 
-/**
- * ✅ UPDATED Factory pentru Samsung Galaxy Watch 7 - REAL Implementation
- */
+import com.feri.watchmyparent.mobile.infrastructure.services.SamsungHealthDataService;
+
+//UPDATED Factory pentru Samsung Galaxy Watch 7 - REAL Implementation
+
 public class WatchManagerFactory {
     private static final String TAG = "WatchManagerFactory";
 
@@ -20,7 +21,7 @@ public class WatchManagerFactory {
         try {
             Log.d(TAG, "🚀 Creating REAL Samsung Health Manager for Galaxy Watch 7...");
 
-            RealSamsungHealthManager manager = new RealSamsungHealthManager(context);
+            RealSamsungHealthManager manager = new RealSamsungHealthManager(context, new SamsungHealthDataService(context));
 
             Log.d(TAG, "✅ Successfully created REAL Samsung Health Manager");
             Log.d(TAG, "   Device ID: " + manager.getDeviceId());
@@ -95,7 +96,7 @@ public class WatchManagerFactory {
     public static boolean isRealImplementationAvailable(Context context) {
         try {
             // Quick check for essential components
-            RealSamsungHealthManager testManager = new RealSamsungHealthManager(context);
+            RealSamsungHealthManager testManager = new RealSamsungHealthManager(context, new SamsungHealthDataService(context));
             boolean available = testManager.isHealthConnectReady() || testManager.areHardwareSensorsReady();
 
             Log.d(TAG, "📊 REAL implementation available: " + available);
