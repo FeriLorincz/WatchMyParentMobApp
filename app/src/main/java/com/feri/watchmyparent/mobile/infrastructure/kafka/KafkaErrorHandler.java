@@ -8,12 +8,12 @@ import java.util.concurrent.TimeUnit;
 
 public class KafkaErrorHandler {
 
-    private final HealthDataKafkaProducer producer;
+    private final RealHealthDataKafkaProducer producer;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private static final int MAX_RETRY_ATTEMPTS = 3;
     private static final long INITIAL_RETRY_DELAY = 1000; // 1 second
 
-    public KafkaErrorHandler(HealthDataKafkaProducer producer) {
+    public KafkaErrorHandler(RealHealthDataKafkaProducer producer) {
         this.producer = producer;
     }
 

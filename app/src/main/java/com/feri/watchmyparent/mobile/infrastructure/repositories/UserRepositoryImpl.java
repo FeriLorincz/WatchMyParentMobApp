@@ -3,6 +3,7 @@ package com.feri.watchmyparent.mobile.infrastructure.repositories;
 import android.util.Log;
 
 import com.feri.watchmyparent.mobile.domain.entities.User;
+import com.feri.watchmyparent.mobile.domain.enums.UserType;
 import com.feri.watchmyparent.mobile.domain.repositories.UserRepository;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.UserDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.entities.UserEntity;
@@ -43,14 +44,52 @@ public class UserRepositoryImpl implements UserRepository{
     public CompletableFuture<Optional<User>> findById(String id) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                Log.d("UserRepositoryImpl", "🔍 Căutare user cu ID: " + id);
+
                 UserEntity entity = userDao.getUserById(id);
-                return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
+
+                if (entity != null) {
+                    Log.d("UserRepositoryImpl", "✅ User găsit în Room DB: " + id);
+                    return Optional.of(convertToDomain(entity));
+                } else {
+                    Log.d("UserRepositoryImpl", "⚠️ User negăsit în Room DB: " + id);
+
+                    // SOLUȚIE PENTRU DEMO: Creăm un user în memorie dacă e demo-user-id
+                    if ("demo-user-id".equals(id)) {
+                        Log.d("UserRepositoryImpl", "🔧 Creez user demo în memorie");
+
+                        User demoUser = new User();
+                        demoUser.setIdUser("demo-user-id");
+                        demoUser.setFirstNameUser("Demo");
+                        demoUser.setLastNameUser("User");
+                        demoUser.setEmailUser("demo@watchmyparent.com");
+                        demoUser.setUserType(UserType.SENIOR);
+
+                        return Optional.of(demoUser);
+                    }
+
+                    return Optional.empty();
+                }
             } catch (Exception e) {
-                Log.e("UserRepositoryImpl", "Error finding user by id: " + id, e);
+                Log.e("UserRepositoryImpl", "❌ Error finding user by id: " + id, e);
+                e.printStackTrace();
                 return Optional.empty();
             }
         }, executor);
     }
+
+//    @Override
+//    public CompletableFuture<Optional<User>> findById(String id) {
+//        return CompletableFuture.supplyAsync(() -> {
+//            try {
+//                UserEntity entity = userDao.getUserById(id);
+//                return entity != null ? Optional.of(convertToDomain(entity)) : Optional.empty();
+//            } catch (Exception e) {
+//                Log.e("UserRepositoryImpl", "Error finding user by id: " + id, e);
+//                return Optional.empty();
+//            }
+//        }, executor);
+//    }
 
     @Override
     public CompletableFuture<Optional<User>> findByEmail(String email) {

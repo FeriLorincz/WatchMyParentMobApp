@@ -17,8 +17,6 @@ import com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -43,7 +41,7 @@ public class HealthDataApplicationService {
     private final UserRepository userRepository;
     private final SensorDataRepository sensorDataRepository;
     private final SensorConfigurationRepository configurationRepository;
-    private final HealthDataKafkaProducer kafkaProducer;
+    private final RealHealthDataKafkaProducer kafkaProducer;
     private final PostgreSQLDataService postgreSQLDataService;
     private final WatchManager watchManager;
 
@@ -51,14 +49,11 @@ public class HealthDataApplicationService {
     WatchConnectionApplicationService watchConnectionApplicationService;
 
     @Inject
-    RealHealthDataKafkaProducer realHealthDataKafkaProducer; // ✅ FIXED: nume corect pentru Kafka producer
-
-    @Inject
     public HealthDataApplicationService(
             UserRepository userRepository,
             SensorDataRepository sensorDataRepository,
             SensorConfigurationRepository configurationRepository,
-            HealthDataKafkaProducer kafkaProducer,
+            RealHealthDataKafkaProducer kafkaProducer,
             PostgreSQLDataService postgreSQLDataService,
             WatchManager watchManager) {
         this.userRepository = userRepository;
@@ -70,7 +65,6 @@ public class HealthDataApplicationService {
     }
 
     // ✅ Collect sensor data - REAL IMPLEMENTATION
-    // ✅ CORRECTED: Metoda principală de colectare date
     public CompletableFuture<List<SensorDataDTO>> collectSensorData(String userId, List<SensorType> sensorTypes) {
         return CompletableFuture.supplyAsync(() -> {
             List<SensorDataDTO> collectedData = new ArrayList<>();
@@ -132,8 +126,6 @@ public class HealthDataApplicationService {
         });
     }
 
-
-    // ✅ CORRECTED: Metoda pentru colectarea de la ceas (fără parametri inexistenți)
     private List<SensorReading> collectFromWatch(List<SensorType> sensorTypes) {
         try {
             // Folosește watchManager direct în loc de watchConnectionService.collectRealTimeData
@@ -149,9 +141,6 @@ public class HealthDataApplicationService {
         }
     }
 
-
-    // Transmite datele REAL către Kafka și PostgreSQL în timp real
-    // ✅ CORRECTED: Metoda de transmitere cu dependințe corecte
     private void transmitDataRealTime(List<SensorDataDTO> sensorData, String userId) {
         CompletableFuture.runAsync(() -> {
             try {
@@ -206,7 +195,6 @@ public class HealthDataApplicationService {
         });
     }
 
-
     private boolean transmitToKafka(SensorDataDTO data, String userId) {
         try {
             // Prepare data for Kafka transmission
@@ -222,7 +210,7 @@ public class HealthDataApplicationService {
             kafkaMessage.put("criticalityLevel", data.getSensorType().getCriticalityLevel().name());
 
             // Send to Kafka using the correctly injected producer
-            boolean success = realHealthDataKafkaProducer.sendHealthData(kafkaMessage, userId).join();
+            boolean success = kafkaProducer.sendHealthData(kafkaMessage, userId).join();
 
             if (success) {
                 Log.d("HealthDataApplicationService", "📤 Kafka transmission successful: " + data.getSensorType());
@@ -238,7 +226,6 @@ public class HealthDataApplicationService {
         }
     }
 
-   // ✅ CORRECTED: Transmitere PostgreSQL
     private boolean transmitToPostgreSQL(SensorDataDTO data, String userId) {
         try {
             // Create SensorData entity for PostgreSQL
@@ -261,8 +248,6 @@ public class HealthDataApplicationService {
         }
     }
 
-    // ✅ CORRECTED: Update transmission status
-    // DE COMPLETAT IN CONTINUARE!!!! ???
     private void updateTransmissionStatus(SensorDataDTO data) {
         try {
             // Update the transmission status in local database
@@ -281,7 +266,6 @@ public class HealthDataApplicationService {
         }
     }
 
-    //Crează entitate SensorData din SensorReading
     private SensorData createSensorDataEntity(String userId, SensorReading reading) {
         // Get user entity (you might want to cache this)
         Optional<User> userOpt = userRepository.findById(userId).join();
@@ -302,7 +286,7 @@ public class HealthDataApplicationService {
         sensorData.setTransmissionStatus(com.feri.watchmyparent.mobile.domain.enums.TransmissionStatus.PENDING);
         sensorData.setDeviceId(reading.getDeviceId() != null ? reading.getDeviceId() : "samsung_galaxy_watch_7");
 
-        // ✅ CORRECTED: Create metadata safely
+        // Create metadata safely
         StringBuilder metadata = new StringBuilder("source=real_watch");
         if (reading.getConnectionType() != null) {
             metadata.append(",connection_type=").append(reading.getConnectionType());
@@ -315,7 +299,6 @@ public class HealthDataApplicationService {
         return sensorData;
     }
 
-    //Convertește SensorData în SensorDataDTO
     private SensorDataDTO convertToDTO(SensorData sensorData) {
         SensorDataDTO dto = new SensorDataDTO();
         dto.setUserId(sensorData.getUser().getIdUser());
@@ -325,12 +308,11 @@ public class HealthDataApplicationService {
         dto.setTimestamp(sensorData.getTimestamp());
         dto.setDeviceId(sensorData.getDeviceId());
         dto.setTransmitted(sensorData.getTransmissionStatus() == com.feri.watchmyparent.mobile.domain.enums.TransmissionStatus.TRANSMITTED);
-        dto.setTransmissionTime(sensorData.getTransmissionTime()); // ✅ Now this method exists
+        dto.setTransmissionTime(sensorData.getTransmissionTime());
 
         return dto;
     }
 
-    //Convertește SensorDataDTO înapoi în SensorData entity pentru PostgreSQL
     private SensorData convertDTOToEntity(SensorDataDTO dto, String userId) {
         // Get user entity
         Optional<User> userOpt = userRepository.findById(userId).join();
@@ -357,17 +339,6 @@ public class HealthDataApplicationService {
         return entity;
     }
 
-
-//    // ✅ Overloaded method for specific sensor types
-//    public CompletableFuture<List<SensorDataDTO>> collectSensorData(String userId, List<SensorType> sensorTypes) {
-//        return collectSensorData(userId)
-//                .thenApply(sensorDataList -> sensorDataList.stream()
-//                        .filter(data -> sensorTypes.contains(data.getSensorType()))
-//                        .map(this::convertToDTO)
-//                        .collect(Collectors.toList()));
-//    }
-
-    // ✅ Get latest sensor data as DTOs
     public CompletableFuture<List<SensorDataDTO>> getLatestSensorData(String userId) {
         return sensorDataRepository.findLatestByUserId(userId)
                 .thenApply(sensorDataList -> sensorDataList.stream()
@@ -375,7 +346,6 @@ public class HealthDataApplicationService {
                         .collect(Collectors.toList()));
     }
 
-    // ✅ Get user sensor configurations as DTOs
     public CompletableFuture<List<SensorConfigurationDTO>> getUserSensorConfigurations(String userId) {
         return configurationRepository.findByUserId(userId)
                 .thenApply(configurations -> configurations.stream()
@@ -383,7 +353,6 @@ public class HealthDataApplicationService {
                         .collect(Collectors.toList()));
     }
 
-    // ✅ Update sensor configuration - with REAL watch configuration
     public CompletableFuture<SensorConfigurationDTO> updateSensorConfiguration(String userId, SensorConfigurationDTO configDTO) {
         return userRepository.findById(userId)
                 .thenCompose(userOpt -> {
@@ -404,7 +373,7 @@ public class HealthDataApplicationService {
                                     config.setEnabled(configDTO.isEnabled());
                                 }
 
-                                // ✅ Configure REAL sensor frequency on watch
+                                // Configure REAL sensor frequency on watch
                                 if (watchManager.isConnected()) {
                                     watchManager.configureSensorFrequency(
                                             configDTO.getSensorType(),
@@ -418,7 +387,7 @@ public class HealthDataApplicationService {
                 });
     }
 
-    // ✅ Retry failed transmissions - with real Kafka and PostgreSQL
+    // Retry failed transmissions using RealHealthDataKafkaProducer
     public CompletableFuture<Boolean> retryFailedTransmissions(String userId) {
         return sensorDataRepository.findPendingTransmissions()
                 .thenCompose(pendingData -> {
@@ -435,7 +404,18 @@ public class HealthDataApplicationService {
     }
 
     private CompletableFuture<Boolean> retryTransmission(SensorData sensorData) {
-        return kafkaProducer.sendHealthData(sensorData, sensorData.getUser().getIdUser())
+        // Create a map for kafka transmission
+        Map<String, Object> kafkaMessage = new HashMap<>();
+        kafkaMessage.put("userId", sensorData.getUser().getIdUser());
+        kafkaMessage.put("sensorType", sensorData.getSensorType().getCode());
+        kafkaMessage.put("value", sensorData.getValue());
+        kafkaMessage.put("unit", sensorData.getUnit());
+        kafkaMessage.put("timestamp", sensorData.getTimestamp().toString());
+        kafkaMessage.put("deviceId", sensorData.getDeviceId());
+        kafkaMessage.put("source", "samsung_galaxy_watch_7");
+        kafkaMessage.put("dataType", "RETRY_SENSOR_DATA");
+
+        return kafkaProducer.sendHealthData(kafkaMessage, sensorData.getUser().getIdUser())
                 .thenCompose(transmitted -> {
                     if (transmitted) {
                         sensorData.markAsTransmitted();

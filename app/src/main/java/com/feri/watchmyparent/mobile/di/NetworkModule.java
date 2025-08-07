@@ -1,7 +1,6 @@
 package com.feri.watchmyparent.mobile.di;
 
 import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
 import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdapter;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
@@ -22,30 +21,15 @@ public class NetworkModule {
 
     @Provides
     @Singleton
-    public HealthDataKafkaProducer provideKafkaProducer() {
-        // Returnăm direct instanța noastră mock, fără a initializa KafkaProducer real
-        return new HealthDataKafkaProducer();
-    }
-
-    @Provides
-    @Singleton
     public RealHealthDataKafkaProducer provideRealKafkaProducer() {
         try {
             Log.d("NetworkModule", "Creating RealHealthDataKafkaProducer");
             return new RealHealthDataKafkaProducer();
         } catch (Exception e) {
-            Log.e("NetworkModule", "Error creating RealHealthDataKafkaProducer, using fallback mock", e);
-            // Fall back to the mock implementation if there's an error
-            return new RealHealthDataKafkaProducer();
+            Log.e("NetworkModule", "Error creating RealHealthDataKafkaProducer", e);
+            throw new RuntimeException("Failed to create RealHealthDataKafkaProducer", e);
         }
     }
-
-//    @Provides
-//    @Singleton
-//    public RealHealthDataKafkaProducer provideRealKafkaProducer() {
-//        // Provide real Kafka producer for services that need it specifically
-//        return new RealHealthDataKafkaProducer();
-//    }
 
     @Provides
     @Singleton

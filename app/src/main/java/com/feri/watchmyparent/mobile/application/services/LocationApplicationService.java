@@ -7,15 +7,9 @@ import com.feri.watchmyparent.mobile.domain.entities.LocationData;
 import com.feri.watchmyparent.mobile.domain.entities.User;
 import com.feri.watchmyparent.mobile.domain.repositories.LocationDataRepository;
 import com.feri.watchmyparent.mobile.domain.repositories.UserRepository;
-import com.feri.watchmyparent.mobile.domain.valueobjects.AddressUser;
 import com.feri.watchmyparent.mobile.domain.valueobjects.LocationStatus;
-import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdapter;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
-//import timber.log.Timber;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 

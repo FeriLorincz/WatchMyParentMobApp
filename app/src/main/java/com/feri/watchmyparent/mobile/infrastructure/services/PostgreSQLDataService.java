@@ -30,41 +30,41 @@ public class PostgreSQLDataService {
         Log.d(TAG, "✅ PostgreSQL Data Service initialized with real database connection");
     }
 
-   // REAL Implementation: Insert sensor data with actual database execution
-   public CompletableFuture<Boolean> insertSensorData(SensorData sensorData) {
-       if (postgreSQLConfig.isOfflineMode()) {
-           Log.w(TAG, "⚠️ Cannot insert sensor data - PostgreSQL in offline mode");
-           return CompletableFuture.completedFuture(false);
-       }
+    // REAL Implementation: Insert sensor data with actual database execution
+    public CompletableFuture<Boolean> insertSensorData(SensorData sensorData) {
+        if (postgreSQLConfig.isOfflineMode()) {
+            Log.w(TAG, "⚠️ Cannot insert sensor data - PostgreSQL in offline mode");
+            return CompletableFuture.completedFuture(false);
+        }
 
-       return CompletableFuture.supplyAsync(() -> {
-           try {
-               String sql = generateSensorDataInsertSQL(sensorData);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String sql = generateSensorDataInsertSQL(sensorData);
 
-               Log.d(TAG, "📤 Inserting REAL sensor data to PostgreSQL:");
-               Log.d(TAG, "   Sensor: " + sensorData.getSensorType().getDisplayName());
-               Log.d(TAG, "   Value: " + sensorData.getValue() + " " + sensorData.getUnit());
-               Log.d(TAG, "   User: " + sensorData.getUser().getIdUser());
-               Log.d(TAG, "   Device: " + sensorData.getDeviceId());
-               Log.d(TAG, "   Timestamp: " + sensorData.getTimestamp());
+                Log.d(TAG, "📤 Inserting REAL sensor data to PostgreSQL:");
+                Log.d(TAG, "   Sensor: " + sensorData.getSensorType().getDisplayName());
+                Log.d(TAG, "   Value: " + sensorData.getValue() + " " + sensorData.getUnit());
+                Log.d(TAG, "   User: " + sensorData.getUser().getIdUser());
+                Log.d(TAG, "   Device: " + sensorData.getDeviceId());
+                Log.d(TAG, "   Timestamp: " + sensorData.getTimestamp());
 
-               // ✅ Execute real SQL insertion
-               boolean inserted = executeRealInsertSQL(sql);
+                // ✅ Execute real SQL insertion
+                boolean inserted = executeRealInsertSQL(sql);
 
-               if (inserted) {
-                   Log.d(TAG, "✅ Successfully inserted sensor data to PostgreSQL database");
-                   return true;
-               } else {
-                   Log.e(TAG, "❌ Failed to insert sensor data to PostgreSQL database");
-                   return false;
-               }
+                if (inserted) {
+                    Log.d(TAG, "✅ Successfully inserted sensor data to PostgreSQL database");
+                    return true;
+                } else {
+                    Log.e(TAG, "❌ Failed to insert sensor data to PostgreSQL database");
+                    return false;
+                }
 
-           } catch (Exception e) {
-               Log.e(TAG, "❌ Failed to insert sensor data", e);
-               return false;
-           }
-       });
-   }
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Failed to insert sensor data", e);
+                return false;
+            }
+        });
+    }
 
     // ENHANCED: Insert location data with GPS coordinates, complete fields, with complete database execution
     public CompletableFuture<Boolean> insertLocationData(LocationData locationData) {

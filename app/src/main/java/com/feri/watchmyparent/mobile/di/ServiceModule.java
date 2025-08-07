@@ -9,10 +9,8 @@ import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaPro
 import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
 import com.feri.watchmyparent.mobile.infrastructure.services.SamsungHealthDataService;
 import com.feri.watchmyparent.mobile.infrastructure.services.SensorDataIntegrationService;
-import com.feri.watchmyparent.mobile.infrastructure.services.WatchConnectionService;
 import com.feri.watchmyparent.mobile.infrastructure.watch.RealSamsungHealthManager;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.HealthDataKafkaProducer;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
 import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdapter;
 import dagger.Module;
@@ -39,7 +37,7 @@ public class ServiceModule {
             UserRepository userRepository,
             SensorDataRepository sensorDataRepository,
             SensorConfigurationRepository configurationRepository,
-            HealthDataKafkaProducer kafkaProducer,
+            RealHealthDataKafkaProducer kafkaProducer,
             PostgreSQLDataService postgreSQLDataService,
             WatchManager watchManager) {
         return new HealthDataApplicationService(

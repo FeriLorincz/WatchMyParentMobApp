@@ -46,13 +46,19 @@ public class DemoDataInitializer {
 
                 // Create demo user
                 User demoUser = createDemoUser();
-                userRepository.save(demoUser).join();
+                User savedUser = userRepository.save(demoUser).join();
 
-                Log.d(TAG, "✅ Demo user created successfully: " + DEMO_USER_ID);
-                return true;
+                if (savedUser != null && savedUser.getIdUser() != null) {
+                    Log.d(TAG, "✅ Demo user created successfully in Room DB: " + DEMO_USER_ID);
+                    return true;
+                } else {
+                    Log.e(TAG, "❌ Failed to save demo user to Room DB");
+                    return false;
+                }
 
             } catch (Exception e) {
                 Log.e(TAG, "❌ Error initializing demo data", e);
+                e.printStackTrace();
                 return false;
             }
         });
