@@ -21,21 +21,6 @@ public class SensorDataDTO {
 
     public SensorDataDTO() {}
 
-//    // Default constructor
-//    public SensorDataDTO() {
-//        this.timestamp = LocalDateTime.now();
-//        this.isTransmitted = false;
-//        this.retryCount = 0;
-
-//    // Constructor with basic fields
-//    public SensorDataDTO(String userId, SensorType sensorType, double value, String unit) {
-//        this();
-//        this.userId = userId;
-//        this.sensorType = sensorType;
-//        this.value = value;
-//        this.unit = unit;
-//    }
-
     public SensorDataDTO(String userId, SensorType sensorType, double value, String deviceId) {
         this.userId = userId;
         this.sensorType = sensorType;

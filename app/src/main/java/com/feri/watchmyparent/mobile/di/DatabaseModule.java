@@ -9,8 +9,7 @@ import com.feri.watchmyparent.mobile.infrastructure.database.dao.MedicalProfileD
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.SensorConfigurationDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.SensorDataDao;
 import com.feri.watchmyparent.mobile.infrastructure.database.dao.UserDao;
-import com.feri.watchmyparent.mobile.infrastructure.repositories.*;
-import com.feri.watchmyparent.mobile.domain.repositories.*;
+import com.feri.watchmyparent.mobile.infrastructure.services.OfflineDataManager;
 import dagger.Module;
 import dagger.Provides;
 import dagger.hilt.InstallIn;
@@ -22,6 +21,7 @@ import javax.inject.Singleton;
 @InstallIn(SingletonComponent.class)
 public class DatabaseModule {
 
+    // Main App Database - PĂSTRAT pentru date locale
     @Provides
     @Singleton
     public AppDatabase provideAppDatabase(@ApplicationContext Context context) {
@@ -34,7 +34,20 @@ public class DatabaseModule {
                 .build();
     }
 
-    // Provide DAOs
+    // ✅ Offline Data Database - NOU pentru buffering Kafka
+    @Provides
+    @Singleton
+    public OfflineDataManager.OfflineDataDatabase provideOfflineDataDatabase(@ApplicationContext Context context) {
+        return Room.databaseBuilder(
+                        context,
+                        OfflineDataManager.OfflineDataDatabase.class,
+                        "offline_health_data"
+                )
+                .fallbackToDestructiveMigration()
+                .build();
+    }
+
+    // Provide DAOs - PĂSTRAT pentru funcționalitatea locală
     @Provides
     @Singleton
     public UserDao provideUserDao(AppDatabase database) {
@@ -69,17 +82,5 @@ public class DatabaseModule {
     @Singleton
     public MedicalProfileDao provideMedicalProfileDao(AppDatabase database) {
         return database.medicalProfileDao();
-    }
-
-    @Provides
-    @Singleton
-    public EmergencyContactRepository provideEmergencyContactRepository(EmergencyContactDao emergencyContactDao) {
-        return new EmergencyContactRepositoryImpl(emergencyContactDao);
-    }
-
-    @Provides
-    @Singleton
-    public MedicalProfileRepository provideMedicalProfileRepository(MedicalProfileDao medicalProfileDao) {
-        return new MedicalProfileRepositoryImpl(medicalProfileDao);
     }
 }

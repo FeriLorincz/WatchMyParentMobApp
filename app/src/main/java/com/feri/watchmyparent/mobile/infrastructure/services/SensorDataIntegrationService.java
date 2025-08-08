@@ -2,20 +2,20 @@ package com.feri.watchmyparent.mobile.infrastructure.services;
 
 import android.util.Log;
 
+import com.feri.watchmyparent.mobile.application.interfaces.DataTransmissionService;
 import com.feri.watchmyparent.mobile.domain.enums.SensorType;
 import com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading;
 import com.feri.watchmyparent.mobile.infrastructure.watch.RealSamsungHealthManager;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-// Orchestrates data collection from Samsung Health SDK, Health Connect, and Hardware sensors
- //Based on my Samsung developer permissions and CriticalityLevel frequencies
-
+   // Orchestrates data collection from Samsung Health SDK, Health Connect, and Hardware sensors
+   //Based on my Samsung developer permissions and CriticalityLevel frequencies
+//Eliminat PostgreSQL direct - totul merge prin DataTransmissionService
+//MODIFICAT: Orchestrează colectarea și transmiterea DOAR prin Kafka
 @Singleton
 public class SensorDataIntegrationService {
 
@@ -23,63 +23,62 @@ public class SensorDataIntegrationService {
 
     private final RealSamsungHealthManager watchManager;
     private final SamsungHealthDataService samsungHealthDataService;
-    private final PostgreSQLDataService postgreSQLDataService;
+    private final DataTransmissionService dataTransmissionService;
 
     // Samsung Health permitted sensors (from your developer agreement)
     private final Set<SensorType> SAMSUNG_HEALTH_PERMITTED = new HashSet<>(Arrays.asList(
             SensorType.HEART_RATE,        // com.samsung.health.heart_rate
-            SensorType.BLOOD_OXYGEN,      // com.samsung.health.blood_oxygen
+            SensorType.BLOOD_OXYGEN,      // com.samsung.health.oxygen_saturation
             SensorType.BLOOD_PRESSURE,    // com.samsung.health.blood_pressure
-            SensorType.BODY_TEMPERATURE,  // com.samsung.health.skin_temperature
-            SensorType.SLEEP              // com.samsung.health.sleep
+            SensorType.BODY_TEMPERATURE,  // com.samsung.health.body_temperature
+            SensorType.SLEEP,             // com.samsung.health.sleep
+            SensorType.STEP_COUNT         // com.samsung.health.step_count (din Exercise)
     ));
 
-    // Health Connect / Hardware sensors (remaining sensors)
-    private final Set<SensorType> HEALTH_CONNECT_SENSORS = new HashSet<>(Arrays.asList(
-            SensorType.STEP_COUNT,
+    // Android Sensor API sensors / Hardware sensors (remaining sensors)
+    private final Set<SensorType> ANDROID_SENSOR_API = new HashSet<>(Arrays.asList(
             SensorType.ACCELEROMETER,
             SensorType.GYROSCOPE,
-            SensorType.STRESS,
-            SensorType.FALL_DETECTION,
-            SensorType.BIA,
             SensorType.GRAVITY,
             SensorType.LINEAR_ACCELERATION,
             SensorType.ROTATION,
             SensorType.ORIENTATION,
             SensorType.MAGNETIC_FIELD,
-            SensorType.HUMIDITY,
             SensorType.LIGHT,
             SensorType.PROXIMITY,
-            SensorType.LOCATION
+            SensorType.LOCATION,
+            SensorType.FALL_DETECTION,
+            SensorType.STRESS
     ));
 
-    @Inject
-    public SensorDataIntegrationService(
-            RealSamsungHealthManager watchManager,
-            SamsungHealthDataService samsungHealthDataService,
-            PostgreSQLDataService postgreSQLDataService) {
-        this.watchManager = watchManager;
-        this.samsungHealthDataService = samsungHealthDataService;
-        this.postgreSQLDataService = postgreSQLDataService;
+       @Inject
+       public SensorDataIntegrationService(
+               RealSamsungHealthManager watchManager,
+               SamsungHealthDataService samsungHealthDataService,
+               DataTransmissionService dataTransmissionService) { // ✅ ÎNLOCUIT PostgreSQLDataService
 
-        Log.d(TAG, "🔄 Initializing Sensor Data Integration Service");
-        Log.d(TAG, "📊 Samsung Health permitted sensors: " + SAMSUNG_HEALTH_PERMITTED.size());
-        Log.d(TAG, "📊 Health Connect/Hardware sensors: " + HEALTH_CONNECT_SENSORS.size());
-    }
+           this.watchManager = watchManager;
+           this.samsungHealthDataService = samsungHealthDataService;
+           this.dataTransmissionService = dataTransmissionService;
+
+           Log.d(TAG, "✅ SensorDataIntegrationService initialized with Kafka-only pipeline");
+           Log.d(TAG, "📊 Samsung Health permitted sensors: " + SAMSUNG_HEALTH_PERMITTED.size());
+           Log.d(TAG, "📊 Android Sensor API sensors: " + ANDROID_SENSOR_API.size());
+       }
 
     //Collect sensor data based on criticality levels and data sources
+       //Trimite valorile sensorilor DOAR prin Kafka
     public CompletableFuture<List<SensorReading>> collectSensorDataByCriticality(
             com.feri.watchmyparent.mobile.domain.enums.CriticalityLevel criticalityLevel) {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
                 List<SensorType> sensorsToRead = getSensorsByCriticality(criticalityLevel);
-
                 Log.d(TAG, "📊 Collecting " + criticalityLevel.name() + " sensors: " + sensorsToRead.size());
 
                 List<SensorReading> allReadings = new ArrayList<>();
 
-                // ✅ PHASE 1: Collect from Samsung Health SDK (permitted sensors)
+                // ✅ PHASE 1: Samsung Health SDK (6 permitted sensors)
                 List<SensorType> samsungHealthSensors = sensorsToRead.stream()
                         .filter(SAMSUNG_HEALTH_PERMITTED::contains)
                         .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
@@ -90,20 +89,20 @@ public class SensorDataIntegrationService {
                     Log.d(TAG, "✅ Samsung Health SDK: " + samsungReadings.size() + " readings");
                 }
 
-                // ✅ PHASE 2: Collect from Health Connect/Hardware (remaining sensors)
-                List<SensorType> healthConnectSensors = sensorsToRead.stream()
-                        .filter(HEALTH_CONNECT_SENSORS::contains)
+                // ✅ PHASE 2: Android Sensor API (12 sensors)
+                List<SensorType> androidSensors = sensorsToRead.stream()
+                        .filter(ANDROID_SENSOR_API::contains)
                         .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
 
-                if (!healthConnectSensors.isEmpty()) {
-                    List<SensorReading> healthConnectReadings = collectFromHealthConnect(healthConnectSensors);
-                    allReadings.addAll(healthConnectReadings);
-                    Log.d(TAG, "✅ Health Connect/Hardware: " + healthConnectReadings.size() + " readings");
+                if (!androidSensors.isEmpty()) {
+                    List<SensorReading> androidReadings = collectFromAndroidSensors(androidSensors);
+                    allReadings.addAll(androidReadings);
+                    Log.d(TAG, "✅ Android Sensor API: " + androidReadings.size() + " readings");
                 }
 
-                // ✅ PHASE 3: Store in PostgreSQL
+                // ✅ PHASE 3: Transmite prin Kafka DOAR (eliminat PostgreSQL)
                 if (!allReadings.isEmpty()) {
-                    storeReadingsInPostgreSQL(allReadings, criticalityLevel);
+                    transmitThroughKafkaOnly(allReadings, criticalityLevel);
                 }
 
                 Log.d(TAG, "✅ Total collected for " + criticalityLevel.name() + ": " + allReadings.size() + " readings");
@@ -116,23 +115,55 @@ public class SensorDataIntegrationService {
         });
     }
 
+       // MODIFICAT: Transmite DOAR prin Kafka (eliminat PostgreSQL)
+       private void transmitThroughKafkaOnly(List<SensorReading> readings,
+                                             com.feri.watchmyparent.mobile.domain.enums.CriticalityLevel criticalityLevel) {
+           try {
+               Log.d(TAG, "📤 Transmitting " + readings.size() + " readings through Kafka-only pipeline...");
+
+               for (SensorReading reading : readings) {
+                   // Convertește în SensorDataDTO
+                   com.feri.watchmyparent.mobile.application.dto.SensorDataDTO sensorDataDTO =
+                           convertToSensorDataDTO(reading, "demo-user-id", criticalityLevel);
+
+                   // ✅ Transmite DOAR prin Kafka via DataTransmissionService
+                   dataTransmissionService.transmitData(sensorDataDTO, "demo-user-id")
+                           .thenAccept(success -> {
+                               if (success) {
+                                   Log.d(TAG, "✅ Kafka transmission successful: " + reading.getSensorType());
+                               } else {
+                                   Log.w(TAG, "⚠️ Kafka transmission failed (will retry): " + reading.getSensorType());
+                               }
+                           })
+                           .exceptionally(throwable -> {
+                               Log.e(TAG, "❌ Kafka transmission error: " + reading.getSensorType(), throwable);
+                               return null;
+                           });
+               }
+
+               Log.d(TAG, "✅ All readings submitted to Kafka-only pipeline");
+
+           } catch (Exception e) {
+               Log.e(TAG, "❌ Error in Kafka-only transmission", e);
+           }
+       }
+
+
+
     // Get sensors by criticality level
     private List<SensorType> getSensorsByCriticality(com.feri.watchmyparent.mobile.domain.enums.CriticalityLevel criticalityLevel) {
         List<SensorType> sensors = new ArrayList<>();
-
         for (SensorType sensorType : SensorType.values()) {
             if (sensorType.getCriticalityLevel() == criticalityLevel) {
                 sensors.add(sensorType);
             }
         }
-
         return sensors;
     }
 
     //Collect from Samsung Health SDK (your permitted sensors)
     private List<SensorReading> collectFromSamsungHealth(List<SensorType> sensors) {
         List<SensorReading> readings = new ArrayList<>();
-
         try {
             Log.d(TAG, "📱 Collecting from Samsung Health SDK: " + sensors.size() + " sensors");
 
@@ -152,110 +183,54 @@ public class SensorDataIntegrationService {
                     }
                 }
             }
-
         } catch (Exception e) {
             Log.e(TAG, "❌ Error collecting from Samsung Health SDK", e);
         }
-
         return readings;
     }
 
-    // Collect from Health Connect and Hardware sensors
-    private List<SensorReading> collectFromHealthConnect(List<SensorType> sensors) {
-        List<SensorReading> readings = new ArrayList<>();
+       private List<SensorReading> collectFromAndroidSensors(List<SensorType> sensors) {
+           List<SensorReading> readings = new ArrayList<>();
+           try {
+               Log.d(TAG, "🤖 Collecting from Android Sensor API: " + sensors.size() + " sensors");
 
-        try {
-            Log.d(TAG, "🔗 Collecting from Health Connect/Hardware: " + sensors.size() + " sensors");
+               List<SensorReading> androidReadings = watchManager.readSensorData(sensors).join();
+               for (SensorReading reading : androidReadings) {
+                   if (reading != null) {
+                       reading.setDeviceId("samsung_galaxy_watch_7");
+                       if (reading.getConnectionType() == null) {
+                           reading.setConnectionType("ANDROID_SENSOR_API");
+                       }
+                       reading.setMetadata("source=android_sensor_api,permitted=false");
+                       readings.add(reading);
 
-            // Use the watch manager to read these sensors
-            List<SensorReading> watchReadings = watchManager.readSensorData(sensors).join();
+                       Log.d(TAG, "📊 Android Sensor: " + reading.getSensorType() + " = " +
+                               String.format("%.2f", reading.getValue()) + " " + reading.getSensorType().getUnit());
+                   }
+               }
+           } catch (Exception e) {
+               Log.e(TAG, "❌ Error collecting from Android Sensor API", e);
+           }
+           return readings;
+       }
 
-            for (SensorReading reading : watchReadings) {
-                if (reading != null) {
-                    reading.setDeviceId("samsung_galaxy_watch_7");
-                    if (reading.getConnectionType() == null) {
-                        reading.setConnectionType("HEALTH_CONNECT_HARDWARE");
-                    }
-                    reading.setMetadata("source=health_connect_hardware,permitted=false");
-                    readings.add(reading);
+       private com.feri.watchmyparent.mobile.application.dto.SensorDataDTO convertToSensorDataDTO(
+               SensorReading reading, String userId,
+               com.feri.watchmyparent.mobile.domain.enums.CriticalityLevel criticalityLevel) {
 
-                    Log.d(TAG, "📊 Health Connect/HW: " + reading.getSensorType() + " = " +
-                            String.format("%.2f", reading.getValue()) + " " + reading.getSensorType().getUnit());
-                }
-            }
+           com.feri.watchmyparent.mobile.application.dto.SensorDataDTO dto =
+                   new com.feri.watchmyparent.mobile.application.dto.SensorDataDTO();
 
-        } catch (Exception e) {
-            Log.e(TAG, "❌ Error collecting from Health Connect/Hardware", e);
-        }
+           dto.setUserId(userId);
+           dto.setSensorType(reading.getSensorType());
+           dto.setValue(reading.getValue());
+           dto.setUnit(reading.getUnit() != null ? reading.getUnit() : reading.getSensorType().getUnit());
+           dto.setTimestamp(reading.getTimestamp() != null ? reading.getTimestamp() : LocalDateTime.now());
+           dto.setDeviceId(reading.getDeviceId());
+           dto.setTransmitted(false);
 
-        return readings;
-    }
-
-    //Store readings in PostgreSQL with metadata
-    private void storeReadingsInPostgreSQL(List<SensorReading> readings,
-                                           com.feri.watchmyparent.mobile.domain.enums.CriticalityLevel criticalityLevel) {
-        try {
-            Log.d(TAG, "💾 Storing " + readings.size() + " readings in PostgreSQL...");
-
-            for (SensorReading reading : readings) {
-                // Convert SensorReading to SensorData entity
-                com.feri.watchmyparent.mobile.domain.entities.SensorData sensorData =
-                        convertToSensorDataEntity(reading, "demo-user-id", criticalityLevel);
-
-                // Store in PostgreSQL
-                postgreSQLDataService.insertSensorData(sensorData)
-                        .thenAccept(success -> {
-                            if (success) {
-                                Log.d(TAG, "✅ Stored: " + reading.getSensorType() + " in PostgreSQL");
-                            } else {
-                                Log.w(TAG, "⚠️ Failed to store: " + reading.getSensorType());
-                            }
-                        });
-            }
-
-        } catch (Exception e) {
-            Log.e(TAG, "❌ Error storing readings in PostgreSQL", e);
-        }
-    }
-
-    // Convert SensorReading to SensorData entity
-    private com.feri.watchmyparent.mobile.domain.entities.SensorData convertToSensorDataEntity(
-            SensorReading reading, String userId,
-            com.feri.watchmyparent.mobile.domain.enums.CriticalityLevel criticalityLevel) {
-
-        // Create a minimal user entity (in real implementation, fetch from repository)
-        com.feri.watchmyparent.mobile.domain.entities.User user =
-                new com.feri.watchmyparent.mobile.domain.entities.User();
-        user.setIdUser(userId);
-
-        com.feri.watchmyparent.mobile.domain.entities.SensorData sensorData =
-                new com.feri.watchmyparent.mobile.domain.entities.SensorData();
-
-        sensorData.setIdSensorData(java.util.UUID.randomUUID().toString());
-        sensorData.setUser(user);
-        sensorData.setSensorType(reading.getSensorType());
-        sensorData.setValue(reading.getValue());
-        sensorData.setUnit(reading.getUnit() != null ? reading.getUnit() : reading.getSensorType().getUnit());
-        sensorData.setTimestamp(reading.getTimestamp() != null ? reading.getTimestamp() : LocalDateTime.now());
-        sensorData.setDeviceId(reading.getDeviceId());
-        sensorData.setTransmissionStatus(com.feri.watchmyparent.mobile.domain.enums.TransmissionStatus.PENDING);
-
-        // Build metadata
-        StringBuilder metadata = new StringBuilder();
-        metadata.append("criticality=").append(criticalityLevel.name());
-        metadata.append(",frequency=").append(criticalityLevel.getDefaultFrequencySeconds()).append("s");
-
-        if (reading.getConnectionType() != null) {
-            metadata.append(",connection=").append(reading.getConnectionType());
-        }
-        if (reading.getMetadata() != null) {
-            metadata.append(",").append(reading.getMetadata());
-        }
-
-        sensorData.setMetadata(metadata.toString());
-
-        return sensorData;
-    }
+           return dto;
+       }
 
     // Collect all CRITICAL sensors (30 second frequency)
     public CompletableFuture<List<SensorReading>> collectCriticalSensors() {
@@ -281,8 +256,8 @@ public class SensorDataIntegrationService {
     public String getDataSourceForSensor(SensorType sensorType) {
         if (SAMSUNG_HEALTH_PERMITTED.contains(sensorType)) {
             return "Samsung Health Data SDK (Permitted)";
-        } else if (HEALTH_CONNECT_SENSORS.contains(sensorType)) {
-            return "Health Connect / Hardware Sensors";
+        } else if (ANDROID_SENSOR_API.contains(sensorType)) {
+            return "Android Sensor API";
         } else {
             return "Unknown";
         }
@@ -291,12 +266,12 @@ public class SensorDataIntegrationService {
     // Get service status
     public String getServiceStatus() {
         StringBuilder status = new StringBuilder();
-        status.append("Sensor Data Integration Service:\n");
+        status.append("Sensor Data Integration Service (Kafka-Only):\n");
         status.append("- Samsung Health SDK: ").append(samsungHealthDataService.isConnected() ? "✅" : "❌").append("\n");
         status.append("- Watch Manager: ").append(watchManager.isConnected() ? "✅" : "❌").append("\n");
-        status.append("- PostgreSQL: ").append(postgreSQLDataService.getConnectionStatus()).append("\n");
+        status.append("- Data Transmission: ✅ Kafka-Only Pipeline\n");
         status.append("- Permitted sensors: ").append(SAMSUNG_HEALTH_PERMITTED.size()).append("\n");
-        status.append("- Other sensors: ").append(HEALTH_CONNECT_SENSORS.size());
+        status.append("- Android sensors: ").append(ANDROID_SENSOR_API.size());
         return status.toString();
     }
 }

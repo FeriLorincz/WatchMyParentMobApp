@@ -27,13 +27,12 @@ import javax.inject.Inject;
 import dagger.hilt.android.AndroidEntryPoint;
 import java.util.concurrent.CompletableFuture;
 
-//COMPLETE Watch Data Collection Service pentru Samsung Galaxy Watch 7
- // Colectează date reale în background cu frecvențe diferite pentru fiecare tip de senzor
-
+//COMPLET MODIFICAT pentru Kafka-Only Pipeline
+//Colectează date reale în background și le transmite DOAR prin Kafka
 @AndroidEntryPoint
 public class WatchDataCollectionService extends Service {
 
-    private static final String TAG = "RealWatchDataService";
+    private static final String TAG = "WatchDataService";
     private static final String CHANNEL_ID = "watch_data_collection";
     private static final int NOTIFICATION_ID = 1001;
 
@@ -52,7 +51,7 @@ public class WatchDataCollectionService extends Service {
     private Handler handler;
     private String currentUserId = "demo-user-id";
 
-    // REAL periodic tasks for Samsung Galaxy Watch 7 data collection
+    // REAL periodic tasks pentru Samsung Galaxy Watch 7 data collection
     private Runnable criticalSensorTask;
     private Runnable importantSensorTask;
     private Runnable regularSensorTask;
@@ -60,12 +59,12 @@ public class WatchDataCollectionService extends Service {
     private Runnable longTermSensorTask;
     private Runnable healthCheckTask;
 
-    // REAL intervals optimized for Samsung Galaxy Watch 7
+    // REAL intervals optimized pentru Samsung Galaxy Watch 7
     private static final long CRITICAL_INTERVAL = 30000; // 30 seconds - vital signs
     private static final long IMPORTANT_INTERVAL = 120000; // 2 minutes - movement
     private static final long REGULAR_INTERVAL = 300000; // 5 minutes - environment
     private static final long LOCATION_INTERVAL = 600000; // 10 minutes - GPS location
-    private static final long LONG_TERM_INTERVAL = 900000; // 15 minutes - sleep, BIA
+    private static final long LONG_TERM_INTERVAL = 900000; // 15 minutes - sleep
     private static final long HEALTH_CHECK_INTERVAL = 60000; // 1 minute - connection check
 
     // Service state
@@ -80,54 +79,54 @@ public class WatchDataCollectionService extends Service {
         handler = new Handler(Looper.getMainLooper());
         serviceStartTime = System.currentTimeMillis();
 
-        Log.d(TAG, "🚀 REAL Samsung Galaxy Watch 7 Data Collection Service created");
+        Log.d(TAG, "🚀 Samsung Galaxy Watch 7 Data Collection Service (Kafka-Only) created");
 
         createNotificationChannel();
-        setupRealDataCollectionTasks();
+        setupKafkaOnlyDataCollectionTasks();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "🔄 Starting REAL data collection from Samsung Galaxy Watch 7...");
+        Log.d(TAG, "🔄 Starting REAL data collection through Kafka-only pipeline...");
 
         if (isServiceRunning) {
-            Log.d(TAG, "✅ Service already running, continuing data collection");
+            Log.d(TAG, "✅ Service already running, continuing Kafka-only data collection");
             return START_STICKY;
         }
 
         // Start as foreground service
         startForeground(NOTIFICATION_ID, createServiceNotification());
 
-        // Check if Samsung Galaxy Watch 7 is ready - cu o abordare mai permisivă
-        checkSamsungWatchReadinessPermissive()
+        // Start data collection with permissive approach
+        checkWatchReadinessAndStart()
                 .thenAccept(ready -> {
                     if (ready) {
-                        startRealDataCollection();
+                        startKafkaOnlyDataCollection();
                     } else {
-                        Log.w(TAG, "⚠️ Samsung Galaxy Watch 7 not fully ready, but trying anyway");
-                        startRealDataCollectionWithFallback();
+                        Log.w(TAG, "⚠️ Watch not fully ready, but starting anyway with fallback");
+                        startKafkaOnlyDataCollectionWithFallback();
                     }
                 })
                 .exceptionally(throwable -> {
-                    Log.e(TAG, "❌ Error checking Samsung Galaxy Watch 7 readiness", throwable);
-                    startRealDataCollectionWithFallback();
+                    Log.e(TAG, "❌ Error checking watch readiness", throwable);
+                    startKafkaOnlyDataCollectionWithFallback();
                     return null;
                 });
 
-        return START_STICKY; // Restart service if killed
+        return START_STICKY;
     }
 
-    // Setup real data collection tasks using integration service
-    private void setupRealDataCollectionTasks() {
-        Log.d(TAG, "⚙️ Setting up REAL data collection tasks for Samsung Galaxy Watch 7...");
+    // Setup REAL data collection tasks pentru Kafka-only pipeline
+    private void setupKafkaOnlyDataCollectionTasks() {
+        Log.d(TAG, "⚙️ Setting up Kafka-only data collection tasks...");
 
-        // ✅ CRITICAL sensors - Samsung Health SDK permitted sensors (30 seconds)
+        // ✅ CRITICAL sensors - Samsung Health SDK (30 seconds)
         criticalSensorTask = new Runnable() {
             @Override
             public void run() {
                 if (isWatchConnected) {
-                    Log.d(TAG, "🔴 Collecting CRITICAL sensors from Samsung Health SDK");
-                    collectCriticalSensorsAsync();
+                    Log.d(TAG, "🔴 Collecting CRITICAL sensors through Kafka-only pipeline");
+                    collectCriticalSensorsKafkaOnly();
                 }
                 if (isServiceRunning) {
                     handler.postDelayed(this, CRITICAL_INTERVAL);
@@ -140,8 +139,8 @@ public class WatchDataCollectionService extends Service {
             @Override
             public void run() {
                 if (isWatchConnected) {
-                    Log.d(TAG, "🟡 Collecting IMPORTANT sensors from Health Connect/Hardware");
-                    collectImportantSensorsAsync();
+                    Log.d(TAG, "🟡 Collecting IMPORTANT sensors through Kafka-only pipeline");
+                    collectImportantSensorsKafkaOnly();
                 }
                 if (isServiceRunning) {
                     handler.postDelayed(this, IMPORTANT_INTERVAL);
@@ -154,8 +153,8 @@ public class WatchDataCollectionService extends Service {
             @Override
             public void run() {
                 if (isWatchConnected) {
-                    Log.d(TAG, "🟢 Collecting REGULAR sensors from hardware");
-                    collectRegularSensorsAsync();
+                    Log.d(TAG, "🟢 Collecting REGULAR sensors through Kafka-only pipeline");
+                    collectRegularSensorsKafkaOnly();
                 }
                 if (isServiceRunning) {
                     handler.postDelayed(this, REGULAR_INTERVAL);
@@ -163,13 +162,13 @@ public class WatchDataCollectionService extends Service {
             }
         };
 
-        // LONG-TERM sensors - Sleep and BIA (15 minutes)
+        // LONG-TERM sensors - Sleep (15 minutes)
         longTermSensorTask = new Runnable() {
             @Override
             public void run() {
                 if (isWatchConnected) {
-                    Log.d(TAG, "🔵 Collecting LONG-TERM sensors");
-                    collectLongTermSensorsAsync();
+                    Log.d(TAG, "🔵 Collecting LONG-TERM sensors through Kafka-only pipeline");
+                    collectLongTermSensorsKafkaOnly();
                 }
                 if (isServiceRunning) {
                     handler.postDelayed(this, LONG_TERM_INTERVAL);
@@ -177,156 +176,166 @@ public class WatchDataCollectionService extends Service {
             }
         };
 
-        // REAL GPS Location tracking
+        // GPS Location tracking (10 minutes)
         locationUpdateTask = new Runnable() {
             @Override
             public void run() {
-                Log.d(TAG, "📍 Updating REAL GPS location");
-                updateRealLocationAsync();
+                Log.d(TAG, "📍 Updating GPS location through Kafka-only pipeline");
+                updateLocationKafkaOnly();
                 if (isServiceRunning) {
                     handler.postDelayed(this, LOCATION_INTERVAL);
                 }
             }
         };
 
-        // Enhanced health check with integration service status
+        // Health check task (1 minute)
         healthCheckTask = new Runnable() {
             @Override
             public void run() {
-                performEnhancedHealthCheck();
+                performKafkaHealthCheck();
                 if (isServiceRunning) {
                     handler.postDelayed(this, HEALTH_CHECK_INTERVAL);
                 }
             }
         };
 
-        Log.d(TAG, "✅ All REAL data collection tasks configured for Samsung Galaxy Watch 7");
+        Log.d(TAG, "✅ All Kafka-only data collection tasks configured");
     }
 
-    // Critical sensors collection using integration service
-    private void collectCriticalSensorsAsync() {
+    // CRITICAL sensors collection prin Kafka-only pipeline
+    private void collectCriticalSensorsKafkaOnly() {
         CompletableFuture.runAsync(() -> {
             try {
-                Log.d(TAG, "📊 [CRITICAL] Collecting Samsung Health SDK permitted sensors...");
+                Log.d(TAG, "📊 [CRITICAL] Collecting Samsung Health SDK sensors through Kafka...");
 
                 sensorDataIntegrationService.collectCriticalSensors()
                         .thenAccept(readings -> {
                             dataCollectionCount += readings.size();
 
-                            Log.d(TAG, "✅ [CRITICAL] Successfully collected " + readings.size() + " readings");
-                            Log.d(TAG, "📈 Total readings collected: " + dataCollectionCount);
+                            Log.d(TAG, "✅ [CRITICAL] Collected " + readings.size() + " readings");
+                            Log.d(TAG, "📤 All critical data automatically transmitted through Kafka-only pipeline");
 
                             // Update notification
                             long uptime = (System.currentTimeMillis() - serviceStartTime) / 60000;
-                            String statusText = String.format("📊 CRITICAL: %d readings (%d min uptime)",
+                            String statusText = String.format("📊 CRITICAL: %d readings, %d min uptime (Kafka-Only)",
                                     dataCollectionCount, uptime);
                             updateServiceNotification(statusText);
 
-                            // Log individual readings
-                            for (com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading reading : readings) {
-                                Log.d(TAG, "📊 REAL [CRITICAL]: " + reading.getSensorType() +
-                                        " = " + String.format("%.2f", reading.getValue()) + " " +
-                                        reading.getSensorType().getUnit() +
-                                        " (source: " + reading.getConnectionType() + ")");
-                            }
+                            // Log summary (no individual readings to avoid spam)
+                            Log.d(TAG, "✅ " + readings.size() + " critical sensors → Kafka pipeline");
+
                         })
                         .exceptionally(throwable -> {
-                            Log.e(TAG, "❌ [CRITICAL] Error collecting sensor data", throwable);
+                            Log.e(TAG, "❌ [CRITICAL] Error in Kafka-only sensor collection", throwable);
                             return null;
                         });
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ [CRITICAL] Exception in sensor data collection", e);
+                Log.e(TAG, "❌ [CRITICAL] Exception in Kafka-only collection", e);
             }
         });
     }
 
-    private void collectImportantSensorsAsync() {
+    // IMPORTANT sensors collection prin Kafka-only pipeline
+    private void collectImportantSensorsKafkaOnly() {
         CompletableFuture.runAsync(() -> {
             try {
-                Log.d(TAG, "📊 [IMPORTANT] Collecting motion and activity sensors...");
+                Log.d(TAG, "📊 [IMPORTANT] Collecting motion sensors through Kafka...");
 
                 sensorDataIntegrationService.collectImportantSensors()
                         .thenAccept(readings -> {
                             dataCollectionCount += readings.size();
 
-                            Log.d(TAG, "✅ [IMPORTANT] Successfully collected " + readings.size() + " readings");
-
-                            for (com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading reading : readings) {
-                                Log.d(TAG, "📊 REAL [IMPORTANT]: " + reading.getSensorType() +
-                                        " = " + String.format("%.2f", reading.getValue()) + " " +
-                                        reading.getSensorType().getUnit());
-                            }
+                            Log.d(TAG, "✅ [IMPORTANT] Collected " + readings.size() + " readings");
+                            Log.d(TAG, "✅ " + readings.size() + " important sensors → Kafka pipeline");
                         })
                         .exceptionally(throwable -> {
-                            Log.e(TAG, "❌ [IMPORTANT] Error collecting sensor data", throwable);
+                            Log.e(TAG, "❌ [IMPORTANT] Error in Kafka-only sensor collection", throwable);
                             return null;
                         });
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ [IMPORTANT] Exception in sensor data collection", e);
+                Log.e(TAG, "❌ [IMPORTANT] Exception in Kafka-only collection", e);
             }
         });
     }
 
-    private void collectRegularSensorsAsync() {
+    //REGULAR sensors collection prin Kafka-only pipeline
+    private void collectRegularSensorsKafkaOnly() {
         CompletableFuture.runAsync(() -> {
             try {
-                Log.d(TAG, "📊 [REGULAR] Collecting environmental sensors...");
+                Log.d(TAG, "📊 [REGULAR] Collecting environmental sensors through Kafka...");
 
                 sensorDataIntegrationService.collectRegularSensors()
                         .thenAccept(readings -> {
                             dataCollectionCount += readings.size();
 
-                            Log.d(TAG, "✅ [REGULAR] Successfully collected " + readings.size() + " readings");
-
-                            for (com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading reading : readings) {
-                                Log.d(TAG, "📊 REAL [REGULAR]: " + reading.getSensorType() +
-                                        " = " + String.format("%.2f", reading.getValue()) + " " +
-                                        reading.getSensorType().getUnit());
-                            }
+                            Log.d(TAG, "✅ [REGULAR] Collected " + readings.size() + " readings");
+                            Log.d(TAG, "✅ " + readings.size() + " regular sensors → Kafka pipeline");
                         })
                         .exceptionally(throwable -> {
-                            Log.e(TAG, "❌ [REGULAR] Error collecting sensor data", throwable);
+                            Log.e(TAG, "❌ [REGULAR] Error in Kafka-only sensor collection", throwable);
                             return null;
                         });
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ [REGULAR] Exception in sensor data collection", e);
+                Log.e(TAG, "❌ [REGULAR] Exception in Kafka-only collection", e);
             }
         });
     }
 
-    private void collectLongTermSensorsAsync() {
+    // LONG-TERM sensors collection prin Kafka-only pipeline
+    private void collectLongTermSensorsKafkaOnly() {
         CompletableFuture.runAsync(() -> {
             try {
-                Log.d(TAG, "📊 [LONG_TERM] Collecting sleep and BIA sensors...");
+                Log.d(TAG, "📊 [LONG_TERM] Collecting sleep sensors through Kafka...");
 
                 sensorDataIntegrationService.collectLongTermSensors()
                         .thenAccept(readings -> {
                             dataCollectionCount += readings.size();
 
-                            Log.d(TAG, "✅ [LONG_TERM] Successfully collected " + readings.size() + " readings");
-
-                            for (com.feri.watchmyparent.mobile.domain.valueobjects.SensorReading reading : readings) {
-                                Log.d(TAG, "📊 REAL [LONG_TERM]: " + reading.getSensorType() +
-                                        " = " + String.format("%.2f", reading.getValue()) + " " +
-                                        reading.getSensorType().getUnit());
-                            }
+                            Log.d(TAG, "✅ [LONG_TERM] Collected " + readings.size() + " readings");
+                            Log.d(TAG, "✅ " + readings.size() + " long-term sensors → Kafka pipeline");
                         })
                         .exceptionally(throwable -> {
-                            Log.e(TAG, "❌ [LONG_TERM] Error collecting sensor data", throwable);
+                            Log.e(TAG, "❌ [LONG_TERM] Error in Kafka-only sensor collection", throwable);
                             return null;
                         });
 
             } catch (Exception e) {
-                Log.e(TAG, "❌ [LONG_TERM] Exception in sensor data collection", e);
+                Log.e(TAG, "❌ [LONG_TERM] Exception in Kafka-only collection", e);
             }
         });
     }
 
+    // Location update prin Kafka-only pipeline
+    private void updateLocationKafkaOnly() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                Log.d(TAG, "📍 Updating GPS location through Kafka-only pipeline");
 
-    private void performEnhancedHealthCheck() {
+                locationService.updateUserLocation(currentUserId)
+                        .thenAccept(locationDTO -> {
+                            if (locationDTO != null) {
+                                Log.d(TAG, "✅ Location updated: " + locationDTO.getStatus() +
+                                        " at " + String.format("%.6f, %.6f",
+                                        locationDTO.getLatitude(), locationDTO.getLongitude()));
+                                Log.d(TAG, "📤 Location data transmitted through Kafka-only pipeline");
+                            }
+                        })
+                        .exceptionally(throwable -> {
+                            Log.e(TAG, "❌ Error updating location through Kafka pipeline", throwable);
+                            return null;
+                        });
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception in Kafka-only location update", e);
+            }
+        });
+    }
+
+    // Health check pentru Kafka-only pipeline
+    private void performKafkaHealthCheck() {
         try {
             // Check if watch is still connected
             boolean watchStillConnected = watchConnectionService.getCurrentStatus().isConnected();
@@ -336,80 +345,53 @@ public class WatchDataCollectionService extends Service {
 
                 if (isWatchConnected) {
                     Log.d(TAG, "✅ Samsung Galaxy Watch 7 reconnected");
-                    updateServiceNotification("✅ Samsung Galaxy Watch 7 reconnected");
+                    updateServiceNotification("✅ Watch connected - Kafka pipeline active");
                 } else {
                     Log.w(TAG, "⚠️ Samsung Galaxy Watch 7 disconnected");
-                    updateServiceNotification("⚠️ Samsung Galaxy Watch 7 disconnected");
+                    updateServiceNotification("⚠️ Watch disconnected - attempting reconnect");
 
                     // Try to reconnect
                     watchConnectionService.connectWatch();
                 }
             }
 
-            // Check integration service status
-            String serviceStatus = sensorDataIntegrationService.getServiceStatus();
-            Log.d(TAG, "🔍 Integration service status:\n" + serviceStatus);
-
-            // Log periodic status
+            // Log periodic status for Kafka-only pipeline
             long uptime = (System.currentTimeMillis() - serviceStartTime) / 60000;
-            Log.d(TAG, "💗 Health check - Watch: " + (isWatchConnected ? "✅" : "❌") +
-                    ", Uptime: " + uptime + " min, Readings: " + dataCollectionCount);
+            Log.d(TAG, "💗 Kafka-only pipeline health check - Watch: " + (isWatchConnected ? "✅" : "❌") +
+                    ", Uptime: " + uptime + " min, Total readings: " + dataCollectionCount);
 
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error in enhanced health check", e);
+            Log.e(TAG, "❌ Error in Kafka-only health check", e);
         }
     }
 
-    private void updateRealLocationAsync() {
-        CompletableFuture.runAsync(() -> {
-            try {
-                Log.d(TAG, "📍 Updating REAL GPS location and sending via Kafka + PostgreSQL");
-
-                locationService.updateUserLocation(currentUserId)
-                        .thenAccept(location -> {
-                            if (location != null) {
-                                Log.d(TAG, "✅ REAL location updated: " + location.getStatus() +
-                                        " at " + location.getFormattedCoordinates());
-                                Log.d(TAG, "📤 Location sent to REAL Kafka and PostgreSQL");
-                            }
-                        })
-                        .exceptionally(throwable -> {
-                            Log.e(TAG, "❌ Error updating REAL GPS location", throwable);
-                            return null;
-                        });
-
-            } catch (Exception e) {
-                Log.e(TAG, "❌ Exception in REAL location update", e);
-            }
-        });
-    }
-
-    private CompletableFuture<Boolean> checkSamsungWatchReadinessPermissive() {
+    // Check watch readiness
+    private CompletableFuture<Boolean> checkWatchReadinessAndStart() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Verificăm doar existența permisiunilor minime esențiale
                 boolean hasMinimalPermissions =
                         ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS)
                                 == PackageManager.PERMISSION_GRANTED;
 
-                Log.d(TAG, "📊 Samsung Galaxy Watch 7 minimal readiness check:");
+                Log.d(TAG, "📊 Samsung Galaxy Watch 7 readiness check (Kafka-only):");
                 Log.d(TAG, "   Essential permissions: " + (hasMinimalPermissions ? "✅" : "❌"));
 
                 return hasMinimalPermissions;
             } catch (Exception e) {
-                Log.e(TAG, "❌ Error checking minimal readiness", e);
+                Log.e(TAG, "❌ Error checking watch readiness", e);
                 return false;
             }
         });
     }
 
-    private void startRealDataCollection() {
+    // Start Kafka-only data collection
+    private void startKafkaOnlyDataCollection() {
         if (isServiceRunning) {
-            Log.d(TAG, "✅ Real data collection already running");
+            Log.d(TAG, "✅ Kafka-only data collection already running");
             return;
         }
 
-        Log.d(TAG, "🚀 Starting REAL data collection from Samsung Galaxy Watch 7");
+        Log.d(TAG, "🚀 Starting Kafka-only data collection from Samsung Galaxy Watch 7");
 
         // Connect to watch first
         watchConnectionService.connectWatch()
@@ -417,12 +399,12 @@ public class WatchDataCollectionService extends Service {
                     isWatchConnected = status.isConnected();
 
                     if (isWatchConnected) {
-                        Log.d(TAG, "✅ Samsung Galaxy Watch 7 connected, starting all data collection tasks");
+                        Log.d(TAG, "✅ Samsung Galaxy Watch 7 connected, starting Kafka-only pipeline");
 
                         isServiceRunning = true;
                         dataCollectionCount = 0;
 
-                        // Start all periodic tasks
+                        // Start all periodic tasks for Kafka-only pipeline
                         handler.post(criticalSensorTask);
                         handler.post(importantSensorTask);
                         handler.post(regularSensorTask);
@@ -430,69 +412,72 @@ public class WatchDataCollectionService extends Service {
                         handler.post(longTermSensorTask);
                         handler.post(healthCheckTask);
 
-                        updateServiceNotification("✅ Collecting REAL data from Samsung Galaxy Watch 7");
-                        Log.d(TAG, "🎉 All REAL data collection tasks started successfully");
+                        updateServiceNotification("✅ Kafka-only pipeline ACTIVE - collecting real data");
+                        Log.d(TAG, "🎉 All Kafka-only data collection tasks started successfully");
 
                     } else {
                         Log.e(TAG, "❌ Failed to connect to Samsung Galaxy Watch 7");
-                        updateServiceNotification("❌ Samsung Galaxy Watch 7 connection failed");
-                        scheduleReadinessCheck(); // Retry
+                        updateServiceNotification("❌ Watch connection failed");
+                        scheduleWatchConnectionRetry();
                     }
                 })
                 .exceptionally(throwable -> {
                     Log.e(TAG, "❌ Error connecting to Samsung Galaxy Watch 7", throwable);
-                    updateServiceNotification("❌ Connection error");
-                    scheduleReadinessCheck();
+                    updateServiceNotification("❌ Connection error - will retry");
+                    scheduleWatchConnectionRetry();
                     return null;
                 });
     }
 
-    private void startRealDataCollectionWithFallback() {
-        Log.d(TAG, "🔄 Starting data collection with fallback mechanisms...");
+    // Start Kafka-only data collection with fallback
+    private void startKafkaOnlyDataCollectionWithFallback() {
+        Log.d(TAG, "🔄 Starting Kafka-only data collection with fallback mechanisms...");
 
         isServiceRunning = true;
 
-        // Connect to watch with fallback to simulated data
+        // Connect to watch with fallback
         watchConnectionService.connectWatchWithFallback()
                 .thenAccept(status -> {
                     isWatchConnected = status.isPartiallyConnected() || status.isConnected();
 
                     if (isWatchConnected) {
-                        Log.d(TAG, "✅ Watch connected (partial or full), starting data collection tasks");
+                        Log.d(TAG, "✅ Watch connected (partial/full), starting Kafka-only tasks");
 
-                        // Start all periodic tasks with longer intervals for fallback mode
+                        // Start all periodic tasks with staggered delays for fallback mode
                         handler.post(criticalSensorTask);
-                        handler.postDelayed(importantSensorTask, 60000); // Delay by 1 minute
-                        handler.postDelayed(regularSensorTask, 120000);  // Delay by 2 minutes
-                        handler.postDelayed(locationUpdateTask, 180000); // Delay by 3 minutes
+                        handler.postDelayed(importantSensorTask, 60000); // Delay 1 minute
+                        handler.postDelayed(regularSensorTask, 120000);  // Delay 2 minutes
+                        handler.postDelayed(locationUpdateTask, 180000); // Delay 3 minutes
+                        handler.postDelayed(longTermSensorTask, 240000); // Delay 4 minutes
+                        handler.post(healthCheckTask);
 
-                        updateServiceNotification("✅ Collecting data (fallback mode)");
+                        updateServiceNotification("✅ Kafka-only pipeline active (fallback mode)");
                     } else {
-                        Log.e(TAG, "❌ Failed to connect to watch even in fallback mode");
-                        updateServiceNotification("❌ Connection failed");
+                        Log.e(TAG, "❌ Failed to connect even in fallback mode");
+                        updateServiceNotification("❌ Connection failed - stopping service");
                         stopSelf();
                     }
                 });
     }
 
-    private void scheduleReadinessCheck() {
-        Log.d(TAG, "⏰ Scheduling Samsung Galaxy Watch 7 readiness check in 30 seconds...");
+    private void scheduleWatchConnectionRetry() {
+        Log.d(TAG, "⏰ Scheduling watch connection retry in 30 seconds...");
         handler.postDelayed(() -> {
-            checkSamsungWatchReadinessPermissive()
+            checkWatchReadinessAndStart()
                     .thenAccept(ready -> {
                         if (ready) {
-                            Log.d(TAG, "✅ Samsung Galaxy Watch 7 now ready, starting data collection");
-                            startRealDataCollection();
+                            Log.d(TAG, "✅ Watch now ready, starting Kafka-only collection");
+                            startKafkaOnlyDataCollection();
                         } else {
-                            Log.w(TAG, "⚠️ Samsung Galaxy Watch 7 still not ready, will retry");
-                            scheduleReadinessCheck();
+                            Log.w(TAG, "⚠️ Watch still not ready, will retry");
+                            scheduleWatchConnectionRetry();
                         }
                     });
         }, 30000); // Retry every 30 seconds
     }
 
-    private void stopRealDataCollection() {
-        Log.d(TAG, "🛑 Stopping REAL data collection from Samsung Galaxy Watch 7");
+    private void stopKafkaOnlyDataCollection() {
+        Log.d(TAG, "🛑 Stopping Kafka-only data collection from Samsung Galaxy Watch 7");
 
         isServiceRunning = false;
         isWatchConnected = false;
@@ -512,18 +497,18 @@ public class WatchDataCollectionService extends Service {
             watchConnectionService.disconnectWatch();
         }
 
-        Log.d(TAG, "✅ All REAL data collection tasks stopped");
-        Log.d(TAG, "📊 Final statistics: " + dataCollectionCount + " total sensor readings collected");
+        Log.d(TAG, "✅ All Kafka-only data collection tasks stopped");
+        Log.d(TAG, "📊 Final statistics: " + dataCollectionCount + " total readings collected through Kafka");
     }
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Samsung Galaxy Watch 7 Data Collection",
+                    "Samsung Galaxy Watch 7 Data Collection (Kafka-Only)",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Collects REAL health data from Samsung Galaxy Watch 7");
+            channel.setDescription("Collects health data and transmits through Kafka-only pipeline");
             channel.setShowBadge(false);
 
             NotificationManager manager = getSystemService(NotificationManager.class);
@@ -539,8 +524,8 @@ public class WatchDataCollectionService extends Service {
         );
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Samsung Galaxy Watch 7 Data Collection")
-                .setContentText("🔄 Collecting REAL health data...")
+                .setContentTitle("Samsung Galaxy Watch 7 (Kafka-Only)")
+                .setContentText("🔄 Collecting health data through Kafka pipeline...")
                 .setSmallIcon(R.drawable.ic_watch_notification)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -558,7 +543,7 @@ public class WatchDataCollectionService extends Service {
             );
 
             Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                    .setContentTitle("Samsung Galaxy Watch 7 REAL Data")
+                    .setContentTitle("Samsung Galaxy Watch 7 (Kafka-Only)")
                     .setContentText(statusText)
                     .setSmallIcon(R.drawable.ic_watch_notification)
                     .setContentIntent(pendingIntent)
@@ -578,11 +563,11 @@ public class WatchDataCollectionService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        stopRealDataCollection();
+        stopKafkaOnlyDataCollection();
 
-        Log.d(TAG, "🔚 REAL Samsung Galaxy Watch 7 Data Collection Service destroyed");
+        Log.d(TAG, "🔚 Samsung Galaxy Watch 7 Kafka-Only Data Collection Service destroyed");
         Log.d(TAG, "📊 Service ran for " + ((System.currentTimeMillis() - serviceStartTime) / 60000) + " minutes");
-        Log.d(TAG, "📈 Total data points collected: " + dataCollectionCount);
+        Log.d(TAG, "📈 Total data points collected through Kafka: " + dataCollectionCount);
     }
 
     @Nullable

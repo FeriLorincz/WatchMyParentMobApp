@@ -2,17 +2,15 @@ package com.feri.watchmyparent.mobile.di;
 
 import android.content.Context;
 
+import com.feri.watchmyparent.mobile.application.interfaces.DataTransmissionService;
 import com.feri.watchmyparent.mobile.application.services.*;
 import com.feri.watchmyparent.mobile.domain.repositories.*;
-import com.feri.watchmyparent.mobile.infrastructure.database.PostgreSQLConfig;
 import com.feri.watchmyparent.mobile.infrastructure.kafka.RealHealthDataKafkaProducer;
-import com.feri.watchmyparent.mobile.infrastructure.services.PostgreSQLDataService;
-import com.feri.watchmyparent.mobile.infrastructure.services.SamsungHealthDataService;
-import com.feri.watchmyparent.mobile.infrastructure.services.SensorDataIntegrationService;
+import com.feri.watchmyparent.mobile.infrastructure.services.*;
 import com.feri.watchmyparent.mobile.infrastructure.watch.RealSamsungHealthManager;
 import com.feri.watchmyparent.mobile.infrastructure.watch.WatchManager;
-import com.feri.watchmyparent.mobile.infrastructure.kafka.KafkaMessageFormatter;
-import com.feri.watchmyparent.mobile.infrastructure.external.LocationServiceAdapter;
+
+import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
 import dagger.hilt.InstallIn;
@@ -22,88 +20,121 @@ import javax.inject.Singleton;
 
 @Module
 @InstallIn(SingletonComponent.class)
-public class ServiceModule {
+public abstract class ServiceModule {
 
-    // Application Services - orchestrează business logic REAL
+    // ✅ Application Services - ACTUALIZAT pentru Kafka-only
     @Provides
     @Singleton
-    public WatchConnectionApplicationService provideWatchConnectionService(WatchManager watchManager) {
+    public static WatchConnectionApplicationService provideWatchConnectionService(WatchManager watchManager) {
         return new WatchConnectionApplicationService(watchManager);
     }
 
+    // ✅ FIX PRINCIPAL: HealthDataApplicationService cu constructorul corect
     @Provides
     @Singleton
-    public HealthDataApplicationService provideHealthDataService(
+    public static HealthDataApplicationService provideHealthDataService(
             UserRepository userRepository,
             SensorDataRepository sensorDataRepository,
-            SensorConfigurationRepository configurationRepository,
-            RealHealthDataKafkaProducer kafkaProducer,
-            PostgreSQLDataService postgreSQLDataService,
-            WatchManager watchManager) {
+            DataTransmissionService dataTransmissionService, // ✅ CORECTAT
+            SensorDataIntegrationService sensorDataIntegrationService) { // ✅ CORECTAT
         return new HealthDataApplicationService(
-                userRepository, sensorDataRepository, configurationRepository,
-                kafkaProducer, postgreSQLDataService, watchManager);
+                userRepository,
+                sensorDataRepository,
+                dataTransmissionService,
+                sensorDataIntegrationService);
     }
 
+    // ✅ CORECTAT: LocationApplicationService
     @Provides
     @Singleton
-    public LocationApplicationService provideLocationService(
+    public static LocationApplicationService provideLocationService(
             LocationDataRepository locationRepository,
             UserRepository userRepository,
-            RealHealthDataKafkaProducer kafkaProducer,
-            PostgreSQLDataService postgreSQLDataService) {
+            DataTransmissionService dataTransmissionService) { // ✅ CORECTAT
         return new LocationApplicationService(
-                locationRepository, userRepository, kafkaProducer, postgreSQLDataService);
+                locationRepository, userRepository, dataTransmissionService);
     }
 
     @Provides
     @Singleton
-    public UserApplicationService provideUserService(
+    public static UserApplicationService provideUserService(
             UserRepository userRepository,
             SensorConfigurationRepository configurationRepository) {
         return new UserApplicationService(userRepository, configurationRepository);
     }
 
+    // ✅ Infrastructure Services - NOI pentru Kafka-only pipeline
     @Provides
     @Singleton
-    public SamsungHealthDataService provideSamsungHealthDataService(@ApplicationContext Context context) {
+    public static OfflineDataManager provideOfflineDataManager(@ApplicationContext Context context) {
+        return new OfflineDataManager(context);
+    }
+
+    @Provides
+    @Singleton
+    public static KafkaHealthCheckService provideKafkaHealthCheckService(
+            RealHealthDataKafkaProducer kafkaProducer) {
+        return new KafkaHealthCheckService(kafkaProducer);
+    }
+
+    @Provides
+    @Singleton
+    public static KafkaRetryService provideKafkaRetryService(
+            RealHealthDataKafkaProducer kafkaProducer,
+            KafkaHealthCheckService healthCheckService,
+            OfflineDataManager offlineDataManager) {
+        return new KafkaRetryService(kafkaProducer, healthCheckService, offlineDataManager);
+    }
+
+    @Provides
+    @Singleton
+    public static NetworkStateManager provideNetworkStateManager(@ApplicationContext Context context) {
+        return new NetworkStateManager(context);
+    }
+
+    // ✅ Data Transmission Service - Implementarea interface-ului
+    @Binds
+    @Singleton
+    public abstract DataTransmissionService bindDataTransmissionService(
+            DataTransmissionServiceImpl dataTransmissionServiceImpl);
+
+    @Provides
+    @Singleton
+    public static DataTransmissionServiceImpl provideDataTransmissionServiceImpl(
+            RealHealthDataKafkaProducer kafkaProducer,
+            KafkaHealthCheckService kafkaHealthService,
+            KafkaRetryService retryService,
+            OfflineDataManager offlineDataManager,
+            NetworkStateManager networkStateManager) {
+        return new DataTransmissionServiceImpl(
+                kafkaProducer, kafkaHealthService, retryService,
+                offlineDataManager, networkStateManager);
+    }
+
+    // ✅ Servicii existente - ACTUALIZAT pentru Kafka-only
+    @Provides
+    @Singleton
+    public static SamsungHealthDataService provideSamsungHealthDataService(@ApplicationContext Context context) {
         return new SamsungHealthDataService(context);
     }
 
     @Provides
     @Singleton
-    public SensorDataIntegrationService provideSensorDataIntegrationService(
+    public static SensorDataIntegrationService provideSensorDataIntegrationService(
             RealSamsungHealthManager watchManager,
             SamsungHealthDataService samsungHealthDataService,
-            PostgreSQLDataService postgreSQLDataService) {
-        return new SensorDataIntegrationService(watchManager, samsungHealthDataService, postgreSQLDataService);
+            DataTransmissionService dataTransmissionService) { // ✅ ÎNLOCUIT PostgreSQL
+        return new SensorDataIntegrationService(watchManager, samsungHealthDataService, dataTransmissionService);
     }
 
-    // ✅ Infrastructure Services - real implementations - Single PostgreSQL Service with initialization
     @Provides
     @Singleton
-    public PostgreSQLDataService providePostgreSQLDataService(PostgreSQLConfig postgreSQLConfig) {
-        PostgreSQLDataService service = new PostgreSQLDataService(postgreSQLConfig);
-
-        // Initialize tables on startup
-        service.initializeTables()
-                .thenAccept(success -> {
-                    if (success) {
-                        android.util.Log.d("ServiceModule", "✅ PostgreSQL tables initialized");
-                    } else {
-                        android.util.Log.w("ServiceModule", "⚠️ PostgreSQL table initialization failed");
-                    }
-                });
-
-        return service;
-    }
-
-    //@Inject constructor binding for RealSamsungHealthManager
-    @Provides
-    @Singleton
-    public RealSamsungHealthManager provideRealSamsungHealthManager(
+    public static RealSamsungHealthManager provideRealSamsungHealthManager(
             @ApplicationContext Context context,
             SamsungHealthDataService samsungHealthDataService) {
         return new RealSamsungHealthManager(context, samsungHealthDataService);
     }
+
+    // ✅ ELIMINAT: PostgreSQLDataService nu mai e necesar pentru pipeline-ul principal
+    // Dacă e necesar pentru teste de conectivitate, poate fi adăugat separat
 }

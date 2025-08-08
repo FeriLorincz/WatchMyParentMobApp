@@ -16,7 +16,6 @@ public class WatchCapabilityRegistry {
         samsungWatch7Sensors.add(SensorType.SLEEP);
         samsungWatch7Sensors.add(SensorType.BODY_TEMPERATURE);
         samsungWatch7Sensors.add(SensorType.STRESS);
-        samsungWatch7Sensors.add(SensorType.BIA);
         samsungWatch7Sensors.add(SensorType.ACCELEROMETER);
         samsungWatch7Sensors.add(SensorType.GYROSCOPE);
         samsungWatch7Sensors.add(SensorType.FALL_DETECTION);

@@ -23,7 +23,7 @@ public class NetworkModule {
     @Singleton
     public RealHealthDataKafkaProducer provideRealKafkaProducer() {
         try {
-            Log.d("NetworkModule", "Creating RealHealthDataKafkaProducer");
+            Log.d("NetworkModule", "Creating RealHealthDataKafkaProducer for Kafka-only pipeline");
             return new RealHealthDataKafkaProducer();
         } catch (Exception e) {
             Log.e("NetworkModule", "Error creating RealHealthDataKafkaProducer", e);
@@ -41,12 +41,5 @@ public class NetworkModule {
     @Singleton
     public LocationServiceAdapter provideLocationServiceAdapter(@ApplicationContext Context context) {
         return new LocationServiceAdapter(context);
-    }
-
-    @Provides
-    @Singleton
-    public PostgreSQLConfig providePostgreSQLConfig() {
-        // ✅ REAL POSTGRESQL IMPLEMENTATION
-        return new PostgreSQLConfig();
     }
 }

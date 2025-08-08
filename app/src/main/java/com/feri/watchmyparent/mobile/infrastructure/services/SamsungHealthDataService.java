@@ -31,24 +31,22 @@ public class SamsungHealthDataService {
         put(SensorType.BLOOD_PRESSURE, "com.samsung.health.blood_pressure");
         put(SensorType.BODY_TEMPERATURE, "com.samsung.health.skin_temperature");
         put(SensorType.SLEEP, "com.samsung.health.sleep");
+        put(SensorType.STEP_COUNT, "com.samsung.health.exercise"); // From Exercise data
     }};
 
     @Inject
     public SamsungHealthDataService(Context context) {
         this.context = context;
-        Log.d(TAG, "🏥 Initializing Samsung Health Data Service for permitted sensors");
+        Log.d(TAG, "🏥 Initializing Samsung Health Data Service - REAL DATA ONLY");
         Log.d(TAG, "✅ Permitted sensors: " + PERMITTED_SENSOR_MAPPING.size());
         initializeService();
     }
 
-    /**
-     * ✅ REAL Implementation: Initialize Samsung Health Data SDK with AIDL architecture
-     */
+    // REAL Implementation: Initialize Samsung Health Data SDK with AIDL architecture
     private void initializeService() {
         try {
             Log.d(TAG, "🔄 Connecting to Samsung Health Data SDK via AIDL...");
 
-            // ✅ Check if Samsung Health Data SDK is available
             boolean sdkAvailable = checkSamsungHealthSDKAvailability();
 
             if (sdkAvailable) {
@@ -59,7 +57,7 @@ public class SamsungHealthDataService {
                 Log.d(TAG, "✅ Using AndroidManifest.xml permissions for " + PERMITTED_SENSOR_MAPPING.size() + " sensors");
             } else {
                 isConnected = false;
-                Log.w(TAG, "⚠️ Samsung Health Data SDK not available");
+                Log.w(TAG, "⚠️ Samsung Health Data SDK not available - NO FALLBACK DATA");
             }
 
         } catch (Exception e) {
@@ -68,9 +66,7 @@ public class SamsungHealthDataService {
         }
     }
 
-    /**
-     * ✅ Check Samsung Health SDK availability using reflection for safety
-     */
+    // Check Samsung Health SDK availability using reflection for safety
     private boolean checkSamsungHealthSDKAvailability() {
         try {
             // Check if Samsung Health Data SDK classes are available
@@ -92,9 +88,8 @@ public class SamsungHealthDataService {
         }
     }
 
-    /**
-     * ✅ REAL Implementation: Read sensor data using Samsung Health Data SDK
-     */
+    // REAL Implementation: Read sensor data using Samsung Health Data SDK
+    // Returns null if real data is not available - NO SIMULATION
     public CompletableFuture<SensorReading> readSensorData(SensorType sensorType) {
         return CompletableFuture.supplyAsync(() -> {
             if (!isConnected) {
@@ -108,7 +103,7 @@ public class SamsungHealthDataService {
             }
 
             try {
-                return readRealSensorData(sensorType);
+                return readRealSensorDataOnly(sensorType);
             } catch (Exception e) {
                 Log.e(TAG, "❌ Error reading " + sensorType + " from Samsung Health", e);
                 return null;
@@ -116,29 +111,24 @@ public class SamsungHealthDataService {
         });
     }
 
-    /**
-     * ✅ REAL Implementation: Read actual sensor data from Samsung Galaxy Watch 7
-     * This method will contain the actual Samsung Health SDK calls when fully integrated
-     */
-    private SensorReading readRealSensorData(SensorType sensorType) {
+    // ✅ REAL DATA ONLY: No simulation fallback
+    private SensorReading readRealSensorDataOnly(SensorType sensorType) {
         try {
             String samsungHealthType = PERMITTED_SENSOR_MAPPING.get(sensorType);
-            Log.d(TAG, "📊 Reading REAL " + sensorType + " from Samsung Health SDK (type: " + samsungHealthType + ")");
+            Log.d(TAG, "📊 Attempting to read REAL " + sensorType + " from Samsung Health SDK");
 
             // ✅ REAL Samsung Health Data SDK implementation would go here
-            // Using the AIDL interfaces from the SDK:
             /*
+            TODO: Implementează apelurile reale Samsung Health SDK aici:
+
             try {
-                // Create data service connection
                 HealthDataService dataService = HealthDataService.getInstance(context);
 
-                // Create read request for the specific sensor
                 ReadDataRequest request = new ReadDataRequest.Builder()
                     .setDataType(samsungHealthType)
                     .setTimeRange(getLastHourTimeRange())
                     .build();
 
-                // Execute read request via AIDL
                 CompletableFuture<DataResponse> future = new CompletableFuture<>();
                 dataService.readData(request, new SingleCallback<DataResponse>() {
                     @Override
@@ -154,141 +144,37 @@ public class SamsungHealthDataService {
 
                 DataResponse response = future.get(5, TimeUnit.SECONDS);
                 if (response.getData().size() > 0) {
-                    // Extract actual sensor value from response
                     double actualValue = extractSensorValue(response, sensorType);
-                    return createSensorReading(sensorType, actualValue, true);
+                    return createRealSensorReading(sensorType, actualValue);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "❌ Samsung Health SDK error for " + sensorType, e);
+                return null;
             }
             */
 
-            // ✅ For now, we'll generate realistic data patterns based on actual sensor characteristics
-            // This will be replaced with real SDK calls once the AIDL integration is complete
-            double realValue = generateRealisticSensorValue(sensorType);
-            return createSensorReading(sensorType, realValue, false);
+            // ✅ CURRENTLY: Return null because we don't have real SDK data
+            Log.w(TAG, "🚫 REAL Samsung Health SDK not fully integrated yet");
+            Log.w(TAG, "🚫 Returning NULL instead of simulated data");
+            Log.w(TAG, "🚫 " + sensorType + " = NULL (no real data available)");
+
+            return null; // ✅ NO SIMULATION - doar date reale sau null
 
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error in readRealSensorData for " + sensorType, e);
+            Log.e(TAG, "❌ Error in readRealSensorDataOnly for " + sensorType, e);
             return null;
         }
     }
 
-    /**
-     * ✅ Generate realistic sensor values based on Samsung Galaxy Watch 7 characteristics
-     * These values follow actual physiological patterns and sensor limitations
-     */
-    private double generateRealisticSensorValue(SensorType sensorType) {
-        Calendar cal = Calendar.getInstance();
-        int hour = cal.get(Calendar.HOUR_OF_DAY);
-        int minute = cal.get(Calendar.MINUTE);
-
-        // Add time-based variation for more realistic patterns
-        double timeVariation = Math.sin(2 * Math.PI * (hour * 60 + minute) / (24 * 60));
-
-        switch (sensorType) {
-            case HEART_RATE:
-                return generateRealisticHeartRate(hour, timeVariation);
-            case BLOOD_OXYGEN:
-                return generateRealisticBloodOxygen();
-            case BLOOD_PRESSURE:
-                return generateRealisticBloodPressure(hour);
-            case BODY_TEMPERATURE:
-                return generateRealisticBodyTemperature(hour, timeVariation);
-            case SLEEP:
-                return generateRealisticSleepScore(hour);
-            default:
-                return 50 + Math.random() * 50; // Default range 50-100
-        }
-    }
-
-    private double generateRealisticHeartRate(int hour, double timeVariation) {
-        double baseRate;
-
-        if (hour >= 23 || hour <= 5) {
-            // Sleep: 45-65 bpm
-            baseRate = 55 + Math.random() * 10;
-        } else if (hour >= 6 && hour <= 8) {
-            // Morning activation: 65-85 bpm
-            baseRate = 75 + Math.random() * 10;
-        } else if (hour >= 12 && hour <= 14) {
-            // Lunch time activity: 70-90 bpm
-            baseRate = 80 + Math.random() * 10;
-        } else {
-            // Regular day: 60-80 bpm
-            baseRate = 70 + Math.random() * 10;
-        }
-
-        // Add circadian rhythm variation
-        baseRate += timeVariation * 5;
-
-        return Math.max(45, Math.min(100, baseRate));
-    }
-
-    private double generateRealisticBloodOxygen() {
-        // Healthy range: 95-100%, most commonly 97-99%
-        return 97 + Math.random() * 2;
-    }
-
-    private double generateRealisticBloodPressure(int hour) {
-        // Systolic pressure varies by time of day
-        double basePressure;
-
-        if (hour >= 23 || hour <= 5) {
-            basePressure = 110 + Math.random() * 15; // Lower during sleep
-        } else if (hour >= 6 && hour <= 10) {
-            basePressure = 125 + Math.random() * 15; // Morning surge
-        } else {
-            basePressure = 118 + Math.random() * 12; // Normal day
-        }
-
-        return Math.max(90, Math.min(140, basePressure));
-    }
-
-    private double generateRealisticBodyTemperature(int hour, double timeVariation) {
-        // Core body temperature varies in 24-hour cycle
-        double baseTemp = 36.5; // Normal core temperature
-
-        // Circadian rhythm: lowest around 4-6 AM, highest around 6-8 PM
-        double circadianVariation = -0.5 * Math.cos(2 * Math.PI * (hour - 6) / 24);
-
-        // Add small random variation
-        double randomVariation = (Math.random() - 0.5) * 0.4;
-
-        return baseTemp + circadianVariation + randomVariation;
-    }
-
-    private double generateRealisticSleepScore(int hour) {
-        if (hour >= 22 || hour <= 6) {
-            // Sleep hours: high quality score
-            return 75 + Math.random() * 20; // 75-95
-        } else if (hour >= 7 && hour <= 9) {
-            // Just woken up: moderate score
-            return 60 + Math.random() * 20; // 60-80
-        } else {
-            // Awake hours: low sleep score
-            return 10 + Math.random() * 30; // 10-40
-        }
-    }
-
-    /**
-     * ✅ Create SensorReading with proper metadata
-     */
-    private SensorReading createSensorReading(SensorType sensorType, double value, boolean isRealData) {
-        SensorReading reading = new SensorReading(sensorType, value);
+    // ✅ Helper method to create real sensor reading when we have actual data
+    private SensorReading createRealSensorReading(SensorType sensorType, double realValue) {
+        SensorReading reading = new SensorReading(sensorType, realValue);
         reading.setTimestamp(LocalDateTime.now());
         reading.setDeviceId("samsung_galaxy_watch_7");
         reading.setConnectionType("SAMSUNG_HEALTH_SDK");
+        reading.setMetadata("source=samsung_health_sdk,real_data=true");
 
-        String metadata = "source=samsung_health_sdk,type=" + PERMITTED_SENSOR_MAPPING.get(sensorType);
-        if (!isRealData) {
-            metadata += ",realistic_simulation=true";
-        }
-        reading.setMetadata(metadata);
-
-        Log.d(TAG, "📊 " + (isRealData ? "REAL" : "Realistic") + " " + sensorType + ": " +
-                String.format("%.2f", value) + " " + sensorType.getUnit());
-
+        Log.d(TAG, "📊 REAL DATA: " + sensorType + " = " + realValue + " " + sensorType.getUnit());
         return reading;
     }
 
@@ -312,9 +198,7 @@ public class SamsungHealthDataService {
         return PERMITTED_SENSOR_MAPPING.get(sensorType);
     }
 
-    /**
-     * ✅ Clean disconnect from Samsung Health Data Service
-     */
+    // Clean disconnect from Samsung Health Data Service
     public void disconnect() {
         try {
             isConnected = false;
@@ -324,21 +208,22 @@ public class SamsungHealthDataService {
         }
     }
 
-    /**
-     * Get service status for debugging
-     */
+    // Get service status for debugging
     public String getServiceStatus() {
         StringBuilder status = new StringBuilder();
-        status.append("Samsung Health Data Service Status:\n");
+        status.append("Samsung Health Data Service Status (REAL DATA ONLY):\n");
         status.append("- Connected: ").append(isConnected ? "✅" : "❌").append("\n");
         status.append("- Permitted sensors: ").append(PERMITTED_SENSOR_MAPPING.size()).append("\n");
         status.append("- SDK available: ").append(checkSamsungHealthSDKAvailability() ? "✅" : "❌").append("\n");
+        status.append("- Simulation: 🚫 DISABLED - REAL DATA ONLY\n");
 
         if (isConnected) {
-            status.append("- Ready to read from: ");
+            status.append("- Available sensors: ");
             for (SensorType sensor : PERMITTED_SENSOR_MAPPING.keySet()) {
                 status.append(sensor.getDisplayName()).append(", ");
             }
+        } else {
+            status.append("- No real data available - service will return NULL values");
         }
 
         return status.toString();

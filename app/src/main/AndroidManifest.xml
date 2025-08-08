@@ -67,6 +67,9 @@
     <!-- ✅ Health Connect Feature -->
     <uses-feature android:name="android.software.health_connect" android:required="false" />
 
+    <uses-permission android:name="com.samsung.health.permission.FALL_DETECTION" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:name=".WatchMyParentApplication"
         android:allowBackup="true"
@@ -93,7 +96,7 @@
         </activity-alias>
 
 
-        <!-- ✅ REAL Health Connect Intent Filter pentru Samsung Galaxy Watch 7 -->
+        <!--REAL Health Connect Intent Filter pentru Samsung Galaxy Watch 7 -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -104,10 +107,10 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- ✅ Samsung Health SDK Configuration -->
+        <!--Samsung Health SDK Configuration -->
         <meta-data
             android:name="com.samsung.android.health.permission.read"
-            android:value="com.samsung.health.heart_rate;com.samsung.health.blood_oxygen;com.samsung.health.blood_pressure;com.samsung.health.skin_temperature;com.samsung.health.sleep;com.samsung.health.blood_glucose" />
+            android:value="com.samsung.health.heart_rate;com.samsung.health.blood_oxygen;com.samsung.health.blood_pressure;com.samsung.health.body_temperature;com.samsung.health.sleep;com.samsung.health.exercise;com.samsung.health.fall_detection" />
 
 
         <!-- Main Dashboard Activity -->
@@ -156,12 +159,22 @@
             android:label="Samsung Watch Setup"
             android:parentActivityName=".presentation.ui.dashboard.DashboardActivity" />
 
-        <!-- ✅ REAL Background Service pentru Samsung Galaxy Watch 7 data collection -->
+        <!-- REAL Background Service pentru Samsung Galaxy Watch 7 data collection -->
         <service
             android:name=".infrastructure.services.WatchDataCollectionService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="health" />
+
+        <receiver
+            android:name=".infrastructure.services.FallDetectionReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="com.samsung.health.FALL_DETECTION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

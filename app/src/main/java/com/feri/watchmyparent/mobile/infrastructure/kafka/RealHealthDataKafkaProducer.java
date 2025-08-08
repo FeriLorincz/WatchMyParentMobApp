@@ -66,6 +66,8 @@ public class RealHealthDataKafkaProducer {
         }
 
         public CompletableFuture<Boolean> sendHealthData(Object healthData, String userId) {
+            Log.d(TAG, "🔄 Attempting to send health data to Kafka for user: " + userId);
+            Log.d(TAG, "📦 Data to send: " + gson.toJson(healthData));
             return CompletableFuture.supplyAsync(() -> {
                 if (!isConnected) {
                     Log.w(TAG, "⚠️ Kafka not connected, attempting to reconnect...");

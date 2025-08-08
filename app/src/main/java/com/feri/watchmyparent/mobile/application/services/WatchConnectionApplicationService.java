@@ -332,7 +332,6 @@ public class WatchConnectionApplicationService {
                 return 300; // Slower changing sensors every 5 minutes
 
             case SLEEP:
-            case BIA:
                 return 900; // Long-term sensors every 15 minutes
 
             default:

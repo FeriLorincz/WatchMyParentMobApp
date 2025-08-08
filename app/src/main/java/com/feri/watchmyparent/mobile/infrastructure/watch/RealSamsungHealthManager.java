@@ -98,9 +98,7 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
                 });
     }
 
-    /**
-     * ✅ FIXED: Initialize Health Connect with proper Kotlin interop
-     */
+    // FIXED: Initialize Health Connect with proper Kotlin interop
     private void initializeHealthConnect() {
         try {
             int sdkStatus = HealthConnectClient.getSdkStatus(context);
@@ -141,47 +139,362 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
     }
 
     private void registerCriticalSensors() {
-        // Heart Rate - Samsung Galaxy Watch 7 has excellent heart rate sensor
+        Log.d(TAG, "🔄 Registering ALL available Samsung Galaxy Watch 7 sensors...");
+
+        // ✅ PRIORITY 1: CRITICAL health sensors (Samsung Health SDK permitted)
         registerSensorIfAvailable(Sensor.TYPE_HEART_RATE, "Heart Rate");
 
-        // Step Counter - for activity tracking
+        // ✅ PRIORITY 2: IMPORTANT activity sensors
         registerSensorIfAvailable(Sensor.TYPE_STEP_COUNTER, "Step Counter");
+        registerStepDetectorIfAvailable(); // For real-time step detection
 
-        // Accelerometer - reduced frequency
+        // ✅ PRIORITY 3: MOTION sensors (reduced frequency for battery)
+        registerMotionSensorsOptimized();
+
+        // ✅ PRIORITY 4: ENVIRONMENTAL sensors available on Galaxy Watch 7
+        registerEnvironmentalSensors();
+
+        // ✅ PRIORITY 5: ADDITIONAL Samsung Galaxy Watch 7 specific sensors
+        registerSamsungSpecificSensors();
+
+        Log.d(TAG, "✅ Total registered sensors: " + registeredSensorTypes.size());
+        Log.d(TAG, "📊 Sensor registration complete for Samsung Galaxy Watch 7");
+    }
+
+    // ✅ NEW: Register step detector for real-time step detection
+    private void registerStepDetectorIfAvailable() {
+        Sensor stepDetector = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
+        if (stepDetector != null) {
+            boolean registered = sensorManager.registerListener(this, stepDetector, SensorManager.SENSOR_DELAY_NORMAL);
+            if (registered) {
+                registeredSensorTypes.add(Sensor.TYPE_STEP_DETECTOR);
+                Log.d(TAG, "✅ Registered Step Detector sensor (real-time steps)");
+            }
+        }
+    }
+
+    // ✅ ENHANCED: Motion sensors with optimized frequencies
+    private void registerMotionSensorsOptimized() {
+        // Accelerometer - reduced frequency for battery optimization
         Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (accelerometer != null) {
             boolean registered = sensorManager.registerListener(
                     this,
                     accelerometer,
                     SensorManager.SENSOR_DELAY_NORMAL,
-                    1000000  // 1 second between updates
+                    1000000  // 1 second between updates (battery optimized)
             );
-
             if (registered) {
                 registeredSensorTypes.add(Sensor.TYPE_ACCELEROMETER);
                 Log.d(TAG, "✅ Registered Accelerometer sensor with reduced frequency");
             }
         }
 
-        // Additional sensors
-        registerSensorIfAvailable(Sensor.TYPE_AMBIENT_TEMPERATURE, "Ambient Temperature");
-        registerSensorIfAvailable(Sensor.TYPE_RELATIVE_HUMIDITY, "Humidity");
-        registerSensorIfAvailable(Sensor.TYPE_LIGHT, "Light");
-        registerSensorIfAvailable(Sensor.TYPE_PROXIMITY, "Proximity");
-    }
-
-    private void registerSensorIfAvailable(int sensorType, String sensorName) {
-        Sensor sensor = sensorManager.getDefaultSensor(sensorType);
-        if (sensor != null) {
-            boolean registered = sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+        // Gyroscope - for rotation detection
+        Sensor gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        if (gyroscope != null) {
+            boolean registered = sensorManager.registerListener(
+                    this,
+                    gyroscope,
+                    SensorManager.SENSOR_DELAY_NORMAL,
+                    2000000  // 2 seconds between updates
+            );
             if (registered) {
-                registeredSensorTypes.add(sensorType);
-                Log.d(TAG, "✅ Registered " + sensorName + " sensor");
-            } else {
-                Log.w(TAG, "⚠️ Failed to register " + sensorName + " sensor");
+                registeredSensorTypes.add(Sensor.TYPE_GYROSCOPE);
+                Log.d(TAG, "✅ Registered Gyroscope sensor");
             }
         }
+
+        // Linear acceleration - for movement analysis
+        registerSensorIfAvailable(Sensor.TYPE_LINEAR_ACCELERATION, "Linear Acceleration");
+
+        // Gravity sensor
+        registerSensorIfAvailable(Sensor.TYPE_GRAVITY, "Gravity");
+
+        // Rotation vector - for orientation
+        registerSensorIfAvailable(Sensor.TYPE_ROTATION_VECTOR, "Rotation Vector");
     }
+
+    // ✅ NEW: Environmental sensors available on Samsung Galaxy Watch 7
+    private void registerEnvironmentalSensors() {
+        // Light sensor - for automatic brightness and sleep detection
+        Sensor lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+        if (lightSensor != null) {
+            boolean registered = sensorManager.registerListener(
+                    this,
+                    lightSensor,
+                    SensorManager.SENSOR_DELAY_NORMAL
+            );
+            if (registered) {
+                registeredSensorTypes.add(Sensor.TYPE_LIGHT);
+                Log.d(TAG, "✅ Registered Light sensor");
+            }
+        }
+
+        // Proximity sensor - for palm detection and screen control
+        Sensor proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+        if (proximitySensor != null) {
+            boolean registered = sensorManager.registerListener(
+                    this,
+                    proximitySensor,
+                    SensorManager.SENSOR_DELAY_NORMAL
+            );
+            if (registered) {
+                registeredSensorTypes.add(Sensor.TYPE_PROXIMITY);
+                Log.d(TAG, "✅ Registered Proximity sensor");
+            }
+        }
+
+        // Ambient temperature - if available
+        registerSensorIfAvailable(Sensor.TYPE_AMBIENT_TEMPERATURE, "Ambient Temperature");
+
+        // Relative humidity - if available
+        registerSensorIfAvailable(Sensor.TYPE_RELATIVE_HUMIDITY, "Relative Humidity");
+
+        // Pressure sensor - for altitude/weather
+        registerSensorIfAvailable(Sensor.TYPE_PRESSURE, "Pressure");
+    }
+
+    // ✅ NEW: Samsung-specific sensors and advanced sensors
+    private void registerSamsungSpecificSensors() {
+        // Magnetic field sensor
+        registerSensorIfAvailable(Sensor.TYPE_MAGNETIC_FIELD, "Magnetic Field");
+
+        // Significant motion detection
+        registerSensorIfAvailable(Sensor.TYPE_SIGNIFICANT_MOTION, "Significant Motion");
+
+        // Game rotation vector (no magnetometer)
+        registerSensorIfAvailable(Sensor.TYPE_GAME_ROTATION_VECTOR, "Game Rotation Vector");
+
+        // Geomagnetic rotation vector
+        registerSensorIfAvailable(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR, "Geomagnetic Rotation Vector");
+
+        // Check for Samsung-specific sensor types (if available)
+        registerSamsungVendorSensors();
+    }
+
+
+    // ✅ NEW: Register Samsung vendor-specific sensors
+    private void registerSamsungVendorSensors() {
+        try {
+            // Get all available sensors and check for Samsung vendor sensors
+            List<Sensor> allSensors = sensorManager.getSensorList(Sensor.TYPE_ALL);
+
+            for (Sensor sensor : allSensors) {
+                // Check for Samsung vendor sensors by name patterns
+                String sensorName = sensor.getName().toLowerCase();
+                String vendorName = sensor.getVendor().toLowerCase();
+
+                if (vendorName.contains("samsung") || sensorName.contains("samsung")) {
+                    // Check if it's a sensor we haven't registered yet
+                    int sensorType = sensor.getType();
+                    if (!registeredSensorTypes.contains(sensorType)) {
+                        boolean registered = sensorManager.registerListener(
+                                this,
+                                sensor,
+                                SensorManager.SENSOR_DELAY_NORMAL
+                        );
+
+                        if (registered) {
+                            registeredSensorTypes.add(sensorType);
+                            Log.d(TAG, "✅ Registered Samsung vendor sensor: " + sensor.getName() +
+                                    " (Type: " + sensorType + ", Vendor: " + sensor.getVendor() + ")");
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error registering Samsung vendor sensors", e);
+        }
+    }
+
+
+    private void registerSensorIfAvailable(int sensorType, String sensorName) {
+        try {
+            Sensor sensor = sensorManager.getDefaultSensor(sensorType);
+            if (sensor != null) {
+                // Check if we've already registered this sensor type
+                if (registeredSensorTypes.contains(sensorType)) {
+                    Log.d(TAG, "⚠️ Sensor already registered: " + sensorName);
+                    return;
+                }
+
+                boolean registered = sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+                if (registered) {
+                    registeredSensorTypes.add(sensorType);
+                    Log.d(TAG, "✅ Registered " + sensorName + " sensor");
+                    Log.d(TAG, "   Vendor: " + sensor.getVendor());
+                    Log.d(TAG, "   Max Range: " + sensor.getMaximumRange());
+                    Log.d(TAG, "   Resolution: " + sensor.getResolution());
+                } else {
+                    Log.w(TAG, "⚠️ Failed to register " + sensorName + " sensor");
+                }
+            } else {
+                Log.d(TAG, "📋 " + sensorName + " sensor not available on this device");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error registering " + sensorName + " sensor", e);
+        }
+    }
+
+    // ✅ NEW: Enhanced sensor change handling with filtering
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        try {
+            SensorType sensorType = mapHardwareSensorToSensorType(event.sensor.getType());
+            if (sensorType != null) {
+                // ✅ SMART FILTERING: Reduce log spam for high-frequency sensors
+                boolean shouldLog = shouldLogSensorReading(event.sensor.getType());
+
+                double value = calculateSensorValue(event);
+                SensorReading reading = new SensorReading(sensorType, value);
+                reading.setTimestamp(LocalDateTime.now());
+                reading.setDeviceId(deviceId);
+                reading.setConnectionType("HARDWARE_SENSOR");
+                reading.setAccuracy(event.accuracy);
+                reading.setMetadata("vendor=" + event.sensor.getVendor() +
+                        ",version=" + event.sensor.getVersion());
+
+                latestReadings.put(sensorType, reading);
+
+                if (shouldLog) {
+                    Log.d(TAG, "🔥 REAL HARDWARE: " + sensorType + " = " +
+                            String.format("%.2f", value) + " " + sensorType.getUnit() +
+                            " (accuracy: " + getAccuracyText(event.accuracy) + ")");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error processing real sensor data", e);
+        }
+    }
+
+    // ✅ NEW: Smart logging to reduce spam
+    private boolean shouldLogSensorReading(int sensorType) {
+        switch (sensorType) {
+            case Sensor.TYPE_ACCELEROMETER:
+            case Sensor.TYPE_GYROSCOPE:
+            case Sensor.TYPE_MAGNETIC_FIELD:
+                // High frequency sensors: log only 2% of events
+                return Math.random() < 0.02;
+            case Sensor.TYPE_LIGHT:
+            case Sensor.TYPE_PROXIMITY:
+                // Medium frequency sensors: log only 10% of events
+                return Math.random() < 0.10;
+            case Sensor.TYPE_HEART_RATE:
+            case Sensor.TYPE_STEP_COUNTER:
+            case Sensor.TYPE_STEP_DETECTOR:
+                // Important sensors: always log
+                return true;
+            default:
+                // Other sensors: log 50% of events
+                return Math.random() < 0.50;
+        }
+    }
+
+    // ✅ NEW: Calculate appropriate sensor value based on sensor type
+    private double calculateSensorValue(SensorEvent event) {
+        switch (event.sensor.getType()) {
+            case Sensor.TYPE_ACCELEROMETER:
+            case Sensor.TYPE_LINEAR_ACCELERATION:
+            case Sensor.TYPE_GRAVITY:
+                // Calculate magnitude for 3-axis sensors
+                return Math.sqrt(event.values[0] * event.values[0] +
+                        event.values[1] * event.values[1] +
+                        event.values[2] * event.values[2]);
+            case Sensor.TYPE_GYROSCOPE:
+                // Calculate rotation magnitude
+                return Math.sqrt(event.values[0] * event.values[0] +
+                        event.values[1] * event.values[1] +
+                        event.values[2] * event.values[2]);
+            case Sensor.TYPE_MAGNETIC_FIELD:
+                // Calculate magnetic field strength
+                return Math.sqrt(event.values[0] * event.values[0] +
+                        event.values[1] * event.values[1] +
+                        event.values[2] * event.values[2]);
+            case Sensor.TYPE_ROTATION_VECTOR:
+            case Sensor.TYPE_GAME_ROTATION_VECTOR:
+            case Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR:
+                // Use the w component or calculate quaternion magnitude
+                return event.values.length > 3 ? event.values[3] : event.values[0];
+            default:
+                // For single-value sensors, use the first value
+                return event.values[0];
+        }
+    }
+
+    // ✅ NEW: Enhanced sensor type mapping including new sensors
+    private SensorType mapHardwareSensorToSensorType(int hardwareSensorType) {
+        switch (hardwareSensorType) {
+            case Sensor.TYPE_HEART_RATE:
+                return SensorType.HEART_RATE;
+            case Sensor.TYPE_STEP_COUNTER:
+            case Sensor.TYPE_STEP_DETECTOR:
+                return SensorType.STEP_COUNT;
+            case Sensor.TYPE_ACCELEROMETER:
+            case Sensor.TYPE_LINEAR_ACCELERATION:
+                return SensorType.ACCELEROMETER;
+            case Sensor.TYPE_GYROSCOPE:
+                return SensorType.GYROSCOPE;
+            case Sensor.TYPE_AMBIENT_TEMPERATURE:
+                return SensorType.BODY_TEMPERATURE;
+            case Sensor.TYPE_LIGHT:
+                return SensorType.LIGHT;
+            case Sensor.TYPE_PROXIMITY:
+                return SensorType.PROXIMITY;
+            case Sensor.TYPE_PRESSURE:
+                return SensorType.BLOOD_PRESSURE; // Map pressure to blood pressure reading
+            case Sensor.TYPE_MAGNETIC_FIELD:
+                return SensorType.MAGNETIC_FIELD;
+            case Sensor.TYPE_GRAVITY:
+                return SensorType.GRAVITY;
+            case Sensor.TYPE_ROTATION_VECTOR:
+            case Sensor.TYPE_GAME_ROTATION_VECTOR:
+            case Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR:
+                return SensorType.ROTATION;
+            default:
+                return null;
+        }
+    }
+
+    // ✅ NEW: Get human-readable accuracy text
+    private String getAccuracyText(int accuracy) {
+        switch (accuracy) {
+            case SensorManager.SENSOR_STATUS_ACCURACY_HIGH:
+                return "HIGH";
+            case SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM:
+                return "MEDIUM";
+            case SensorManager.SENSOR_STATUS_ACCURACY_LOW:
+                return "LOW";
+            case SensorManager.SENSOR_STATUS_UNRELIABLE:
+                return "UNRELIABLE";
+            default:
+                return "UNKNOWN";
+        }
+    }
+
+    // ✅ NEW: Get comprehensive sensor registration status
+    public String getSensorRegistrationStatus() {
+        StringBuilder status = new StringBuilder();
+        status.append("Samsung Galaxy Watch 7 Sensor Registration Status:\n");
+        status.append("- Total registered sensors: ").append(registeredSensorTypes.size()).append("\n");
+        status.append("- Hardware sensors ready: ").append(hardwareSensorsReady ? "✅" : "❌").append("\n");
+        status.append("- Latest readings available: ").append(latestReadings.size()).append("\n");
+
+        if (!registeredSensorTypes.isEmpty()) {
+            status.append("\nRegistered sensor types:\n");
+            for (Integer sensorType : registeredSensorTypes) {
+                Sensor sensor = sensorManager.getDefaultSensor(sensorType);
+                if (sensor != null) {
+                    status.append("- ").append(sensor.getName())
+                            .append(" (Type: ").append(sensorType).append(")\n");
+                }
+            }
+        }
+
+        return status.toString();
+    }
+
 
     @Override
     public CompletableFuture<Boolean> connect() {
@@ -290,17 +603,18 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         });
     }
 
-    /**
-     * ✅ FIXED: Enhanced sensor reading with proper priority system
-     */
+    // FIXED: Enhanced sensor reading with proper priority system
     private SensorReading readSingleSensorData(SensorType sensorType) {
+        Log.d(TAG, "🔍 Trying to read " + sensorType + " data");
+
         // Priority 1: Use Samsung Health Data Service for permitted sensors
         if (SAMSUNG_HEALTH_PERMITTED_SENSORS.contains(sensorType) && samsungHealthDataService.isConnected()) {
             try {
+                Log.d(TAG, "👉 Attempting to read from Samsung Health SDK");
                 SensorReading samsungReading = samsungHealthDataService.readSensorData(sensorType).join();
                 if (samsungReading != null) {
                     samsungReading.setDeviceId(deviceId);
-                    Log.d(TAG, "📊 SAMSUNG HEALTH SDK: " + sensorType + " = " + samsungReading.getValue() + " " + sensorType.getUnit());
+                    Log.d(TAG, "📊 SAMSUNG HEALTH SDK - REAL DATA: " + sensorType + " = " + samsungReading.getValue() + " " + sensorType.getUnit());
                     return samsungReading;
                 }
             } catch (Exception e) {
@@ -339,9 +653,7 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         return fallbackReading;
     }
 
-    /**
-     * ✅ SIMPLIFIED: Health Connect reading without complex Kotlin interop
-     */
+    //SIMPLIFIED: Health Connect reading without complex Kotlin interop
     private SensorReading readFromHealthConnectSimplified(SensorType sensorType) {
         try {
             // For now, we'll use a simplified approach until Health Connect integration is complete
@@ -402,34 +714,28 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         double value;
         switch (sensorType) {
             case HEART_RATE:
-                value = (60 + Math.random() * 40) * timeMultiplier;
+                value = 77.77;
                 break;
             case BLOOD_OXYGEN:
-                value = 95 + Math.random() * 5;
+                value = 97.77;
                 break;
             case STEP_COUNT:
-                value = Math.random() * 150; // Steps per minute
+                value = 7777;
                 break;
             case BODY_TEMPERATURE:
-                value = 36.1 + Math.random() * 1.1;
+                value = 37.77;
                 break;
             case STRESS:
-                double baseStress = 20 + Math.random() * 30;
-                if (hour < 7 || hour > 22) baseStress *= 0.6;
-                value = Math.min(100, baseStress);
+                value = 77.7;
                 break;
             case SLEEP:
-                if (hour >= 22 || hour <= 6) {
-                    value = 70 + Math.random() * 30;
-                } else {
-                    value = 20 + Math.random() * 20;
-                }
+                value = 7.77;
                 break;
             case FALL_DETECTION:
-                value = Math.random() > 0.9999 ? 1.0 : 0.0;
+                value = 0.77;
                 break;
             default:
-                value = Math.random() * 100;
+                value = 77.7;
         }
 
         SensorReading reading = new SensorReading(sensorType, value);
@@ -437,40 +743,6 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         return reading;
     }
 
-    // SensorEventListener implementation for real hardware sensors
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        try {
-            SensorType sensorType = mapHardwareSensorToSensorType(event.sensor.getType());
-            if (sensorType != null) {
-                // Filter accelerometer events to reduce log spam
-                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-                    if (Math.random() > 0.98) {  // Only 2% of events
-                        double value = Math.sqrt(event.values[0] * event.values[0] +
-                                event.values[1] * event.values[1] +
-                                event.values[2] * event.values[2]);
-
-                        SensorReading reading = new SensorReading(sensorType, value);
-                        reading.setTimestamp(LocalDateTime.now());
-                        latestReadings.put(sensorType, reading);
-
-                        Log.d(TAG, "🔥 REAL HARDWARE (Accelerometer): " + value + " " + sensorType.getUnit());
-                    }
-                }
-                else {
-                    // For other sensors, log normally
-                    double value = event.values[0];
-                    SensorReading reading = new SensorReading(sensorType, value);
-                    reading.setTimestamp(LocalDateTime.now());
-                    latestReadings.put(sensorType, reading);
-
-                    Log.d(TAG, "🔥 REAL HARDWARE: " + sensorType + " = " + value + " " + sensorType.getUnit());
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "❌ Error processing real sensor data", e);
-        }
-    }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -492,28 +764,6 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
         Log.d(TAG, "📡 Sensor accuracy changed: " + sensor.getName() + " -> " + accuracyText);
     }
 
-    private SensorType mapHardwareSensorToSensorType(int hardwareSensorType) {
-        switch (hardwareSensorType) {
-            case Sensor.TYPE_HEART_RATE:
-                return SensorType.HEART_RATE;
-            case Sensor.TYPE_STEP_COUNTER:
-                return SensorType.STEP_COUNT;
-            case Sensor.TYPE_ACCELEROMETER:
-                return SensorType.ACCELEROMETER;
-            case Sensor.TYPE_GYROSCOPE:
-                return SensorType.GYROSCOPE;
-            case Sensor.TYPE_AMBIENT_TEMPERATURE:
-                return SensorType.BODY_TEMPERATURE;
-            case Sensor.TYPE_RELATIVE_HUMIDITY:
-                return SensorType.HUMIDITY;
-            case Sensor.TYPE_LIGHT:
-                return SensorType.LIGHT;
-            case Sensor.TYPE_PROXIMITY:
-                return SensorType.PROXIMITY;
-            default:
-                return null;
-        }
-    }
 
     @Override
     public CompletableFuture<Boolean> configureSensorFrequency(SensorType sensorType, int frequencySeconds) {
@@ -556,9 +806,7 @@ public class RealSamsungHealthManager extends WatchManager implements SensorEven
                     SensorType.ACCELEROMETER,
                     SensorType.GYROSCOPE,
                     SensorType.FALL_DETECTION,
-                    SensorType.BIA,
                     SensorType.STRESS,
-                    SensorType.HUMIDITY,
                     SensorType.LIGHT,
                     SensorType.PROXIMITY
             );
